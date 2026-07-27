@@ -54,7 +54,7 @@ def add_transaction():
     )
     conn.commit()
     conn.close()
-    return jsonify({"status": "success"})
+    return jsonify({"status": "success"}) 
 
 # 4. Edit value
 @app.route('/api/transactions/<tx_id>', methods=['PUT'])

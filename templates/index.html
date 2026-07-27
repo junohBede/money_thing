@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense & Income Tracker Calendar</title>
+    <!-- Include jQuery Library -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: 'Helvetica', Arial, sans-serif;
+            background-color: #f5f6fa;
+            color: #2f3640;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                flex-direction: row;
+            }
+        }
+
+        /* Form Area Sidebar */
+        .form-area {
+            background-color: #ffffff;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+            width: 100%;
+        }
+
+        @media (min-width: 768px) {
+            .form-area {
+                width: 320px;
+                height: 100%;
+                overflow-y: auto;
+            }
+        }
+
+        .form-area h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 20px;
+            color: #1abc9c;
+            border-bottom: 2px solid #f1f2f6;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #dcdde1;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background-color: #1abc9c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* Calendar Area Container */
+        .calendar-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #ffffff;
+            height: 100%;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background-color: #ffffff;
+            border-bottom: 1px solid #f1f2f6;
+        }
+
+        .calendar-header h3 {
+            margin: 0;
+            font-size: 22px;
+            color: #2f3640;
+        }
+
+        .nav-btn {
+            background-color: #1abc9c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .nav-btn:hover {
+            background-color: #16a085;
+        }
+
+        .calendar-body {
+            flex: 1;
+            position: relative;
+        }
+
+        #fullDiv {
+            position: absolute;
+            margin: 0;
+            padding: 0;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            right: 0;
+            overflow: hidden; 
+        }
+
+        ul {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        li {
+            float: left;
+            display: block;
+            width: 14.2857%;
+            text-align: center;
+            list-style-type: none;
+            position: relative;
+            border: 1px solid #f1f2f6;
+        }
+
+        .day-title {
+            font-weight: 900;
+            color: #e67e22;
+            background-color: #fff5e6;
+        }
+
+        .not-current-month {
+            font-weight: 900;
+            color: rgba(0,0,0,.2);
+            background-color: #fafbfc;
+        }
+
+        .current-month-day {
+            background-color: #ffffff;
+        }
+
+        li:not(.day-title) {
+            cursor: pointer;
+        }
+
+        li:hover:not(.day-title) {
+            border-radius: 5px;
+            background-color: #e8f8f5;
+        }
+
+        .date-num {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            font-weight: bold;
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        .expense-display {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            left: 8px;
+            font-weight: bold;
+            font-size: 11px;
+            text-align: right;
+            line-height: 1.3;
+        }
+
+        .income-text { color: #2ecc71; }
+        .expense-text { color: #e74c3c; }
+
+        /* ==================== CLEAN LIST TABULAR MODAL ==================== */
+        .modal {
+            display: none; 
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(47, 54, 64, 0.6);
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background-color: #fff;
+            padding: 35px;
+            border-radius: 12px;
+            width: 95%;
+            max-width: 800px; /* Widened slightly to fit fields nicely */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            position: relative;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 25px;
+            font-size: 28px;
+            cursor: pointer;
+            color: #a0a8b3;
+        }
+
+        .close-btn:hover { color: #2f3640; }
+
+        .modal-content h3 {
+            margin-top: 0;
+            margin-bottom: 25px;
+            font-size: 22px;
+            color: #2f3640;
+            border-bottom: 2px solid #f1f2f6;
+            padding-bottom: 12px;
+        }
+
+        /* Structured Row Table View styles */
+        .list-wrapper {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+
+        .table-header, .transaction-row {
+            display: grid;
+            grid-template-columns: 140px 1fr 120px 140px; /* Exact structured columns alignment */
+            align-items: center;
+            padding: 12px 16px;
+            gap: 12px;
+        }
+
+        .table-header {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            font-size: 13px;
+            color: #7f8c8d;
+            border-bottom: 2px solid #e2e8f0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .transaction-row {
+            border-bottom: 1px solid #edf2f7;
+            background-color: #ffffff;
+            transition: background-color 0.15s;
+        }
+
+        .transaction-row:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-row:hover {
+            background-color: #fafbfc;
+        }
+
+        /* Pill style type labels */
+        .type-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .badge-inc { background-color: #e8f8f5; color: #2ecc71; }
+        .badge-exp { background-color: #fde8e8; color: #e74c3c; }
+
+        .row-cat {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 2px;
+        }
+
+        .row-memo {
+            font-size: 14px;
+            color: #2f3640;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .row-amount {
+            font-size: 15px;
+            font-weight: bold;
+            text-align: right;
+        }
+
+        .row-actions {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .edit-btn { background-color: #edf2f7; color: #4a5568; }
+        .edit-btn:hover { background-color: #e2e8f0; }
+        .delete-btn { background-color: #fee2e2; color: #ef4444; }
+        .delete-btn:hover { background-color: #fca5a5; }
+        .save-btn { background-color: #1abc9c; color: white; }
+        .cancel-btn { background-color: #cbd5e1; color: #475569; }
+
+        /* Editing Elements Control styles */
+        .edit-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            font-size: 13px;
+            outline: none;
+        }
+        .edit-input:focus { border-color: #1abc9c; }
+
+        .no-data {
+            color: #7f8c8d;
+            text-align: center;
+            padding: 40px 20px;
+            font-style: italic;
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Left Input Sidebar -->
+    <div class="form-area">
+        <h2>Add Transaction</h2>
+        <form id="expenseForm">
+            <div class="form-group">
+                <label for="expenseDate">Date</label>
+                <input type="date" id="expenseDate" required>
+            </div>
+
+            <div class="form-group">
+                <label for="transactionType">Type</label>
+                <select id="transactionType" required>
+                    <option value="expense">Expense (-)</option>
+                    <option value="income">Income (+)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="expenseAmount">Amount ($)</label>
+                <input type="number" id="expenseAmount" min="1" placeholder="Enter amount" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="expenseCategory">Category</label>
+                <select id="expenseCategory" required>
+                    <option value="" disabled selected>Select category</option>
+                    <option value="Salary/Income">Salary/Income</option>
+                    <option value="Food">Food</option>
+                    <option value="Transport">Transport</option>
+                    <option value="Shopping">Shopping</option>
+                    <option value="Bills">Bills</option>
+                    <option value="Others">Others</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="expenseMemo">Memo / Description</label>
+                <input type="text" id="expenseMemo" placeholder="E.g., Grocery shopping">
+            </div>
+            
+            <button type="submit" class="btn-submit">Add to Calendar</button>
+        </form>
+    </div>
+
+    <!-- Right Calendar View -->
+    <div class="calendar-area">
+        <div class="calendar-header">
+            <button class="nav-btn" id="prevMonth">&lt; Prev</button>
+            <h3 id="monthYearDisplay">May 2026</h3>
+            <button class="nav-btn" id="nextMonth">Next &gt;</button>
+        </div>
+        <div class="calendar-body">
+            <div id='fullDiv'>
+                <ul id="calendarGrid"></ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grid List Modal Component -->
+<div class="modal" id="detailsModal">
+    <div class="modal-content">
+        <span class="close-btn" id="closeModal">&times;</span>
+        <h3 id="modalDateTitle">Transactions Summary</h3>
+        
+        <div class="list-wrapper">
+            <!-- Table Header Definitions -->
+            <div class="table-header" id="modalTableHeader">
+                <div>Type / Category</div>
+                <div>Description / Memo</div>
+                <div style="text-align: right;">Amount</div>
+                <div style="text-align: right;">Actions</div>
+            </div>
+            <div id="modalListContainer"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    var transactionDatabase = {};
+    var currentDate = new Date();
+    var currentSelectedDate = ""; 
+    var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+    // [추가] 1. 페이지가 켜지면 Flask DB로부터 기존 데이터를 전부 다 긁어옵니다.
+    function loadInitialData() {
+        $.ajax({
+            url: '/api/transactions',
+            type: 'GET',
+            success: function(data) {
+                // 백엔드 리스트 데이터를 기존 JS가 쓰던 { "2026-05-01": [...] } 객체 구조로 재구성
+                transactionDatabase = {};
+                data.forEach(function(item) {
+                    if (!transactionDatabase[item.date]) {
+                        transactionDatabase[item.date] = [];
+                    }
+                    transactionDatabase[item.date].push(item);
+                });
+                renderCalendar(); // 데이터를 다 받아오면 달력을 그려줍니다.
+            }
+        });
+    }
+
+    function renderCalendar() {
+        var year = currentDate.getFullYear();
+        var month = currentDate.getMonth();
+
+        $("#monthYearDisplay").text(monthNames[month] + " " + year);
+        var $grid = $("#calendarGrid").empty();
+
+        var daysOfWeek = ["SUN", "MON", "TUE", "WED", "THUR", "FRI", "SAT"];
+        daysOfWeek.forEach(function(day) {
+            $grid.append($("<li>").addClass("day-title").text(day));
+        });
+
+        var firstDayIndex = new Date(year, month, 1).getDay();
+        var totalDaysCurrent = new Date(year, month + 1, 0).getDate();
+        var totalDaysPrev = new Date(year, month, 0).getDate();
+
+        for (var i = firstDayIndex - 1; i >= 0; i--) {
+            var prevDay = totalDaysPrev - i;
+            var targetMonth = month === 0 ? 11 : month - 1;
+            var targetYear = month === 0 ? year - 1 : year;
+            appendDayCell($grid, prevDay, formatDateString(targetYear, targetMonth, prevDay), "not-current-month");
+        }
+
+        for (var day = 1; day <= totalDaysCurrent; day++) {
+            appendDayCell($grid, day, formatDateString(year, month, day), "current-month-day");
+        }
+
+        var totalRenderedSoFar = firstDayIndex + totalDaysCurrent;
+        var nextMonthPadding = 42 - totalRenderedSoFar;
+        for (var day = 1; day <= nextMonthPadding; day++) {
+            var targetMonth = month === 11 ? 0 : month + 1;
+            var targetYear = month === 11 ? year + 1 : year;
+            appendDayCell($grid, day, formatDateString(targetYear, targetMonth, day), "not-current-month");
+        }
+
+        setCalendarHeight();
+    }
+
+    function appendDayCell($parent, displayNum, dateIsoStr, className) {
+        var $li = $("<li>").addClass(className).attr("data-date", dateIsoStr);
+        $li.append($("<span>").addClass("date-num").text(displayNum));
+        
+        var $displayDiv = $("<div>").addClass("expense-display");
+        
+        if (transactionDatabase[dateIsoStr]) {
+            var incSum = 0, expSum = 0;
+            transactionDatabase[dateIsoStr].forEach(function(item) {
+                if (item.type === 'income') incSum += item.amount;
+                else expSum += item.amount;
+            });
+
+            if (incSum > 0) $displayDiv.append($("<div>").addClass("income-text").text("+" + incSum.toLocaleString()));
+            if (expSum > 0) $displayDiv.append($("<div>").addClass("expense-text").text("-" + expSum.toLocaleString()));
+        }
+        
+        $li.append($displayDiv);
+        $parent.append($li);
+    }
+
+    function formatDateString(y, m, d) {
+        var mm = (m + 1) < 10 ? "0" + (m + 1) : (m + 1);
+        var dd = d < 10 ? "0" + d : d;
+        return y + "-" + mm + "-" + dd;
+    }
+
+    function setCalendarHeight() {
+        var availableHeight = $(".calendar-body").height();
+        var height = (availableHeight / 6);
+        if ($(window).width() < 768) {
+            $("li").css({ "height": "85px", "line-height": "85px" });
+        } else {
+            $("li").css({ "height": height + "px", "line-height": height + "px" });
+        }
+    }
+
+    function loadModalTransactions(dateStr) {
+        currentSelectedDate = dateStr;
+        $("#modalDateTitle").text("Transactions for " + dateStr);
+        
+        var $container = $("#modalListContainer").empty();
+        var items = transactionDatabase[dateStr] || [];
+
+        if (items.length === 0) {
+            $("#modalTableHeader").hide();
+            $container.append($("<div>").addClass("no-data").text("No records tracked on this date."));
+            return;
+        }
+
+        $("#modalTableHeader").show();
+
+        items.forEach(function(item) {
+            var isInc = item.type === 'income';
+            var sign = isInc ? '+' : '-';
+            var colorClass = isInc ? 'income-text' : 'expense-text';
+            var badgeClass = isInc ? 'badge-inc' : 'badge-exp';
+            
+            var $row = $("<div>").addClass("transaction-row").attr("data-id", item.id);
+
+            var $colInfo = $("<div>").append(
+                $("<span>").addClass("type-badge " + badgeClass).text(item.type.toUpperCase()),
+                $("<div>").addClass("row-cat").text(item.category)
+            );
+
+            var $colMemo = $("<div>").addClass("row-memo").text(item.memo || "—");
+            var $colAmount = $("<div>").addClass("row-amount " + colorClass).text(sign + "$" + item.amount.toLocaleString());
+
+            var $colActions = $("<div>").addClass("row-actions");
+            var $editBtn = $("<button>").addClass("action-btn edit-btn").text("Edit");
+            var $deleteBtn = $("<button>").addClass("action-btn delete-btn").text("Delete");
+            $colActions.append($editBtn, $deleteBtn);
+
+            $row.append($colInfo, $colMemo, $colAmount, $colActions);
+            $container.append($row);
+
+            // --- 수정 기능에 Ajax 동기화 ---
+            $editBtn.on("click", function() {
+                $colInfo.html(`
+                    <select class="edit-input edit-type" style="margin-bottom:4px;">
+                        <option value="expense" ${item.type==='expense'?'selected':''}>EXPENSE</option>
+                        <option value="income" ${item.type==='income'?'selected':''}>INCOME</option>
+                    </select>
+                    <select class="edit-input edit-cat">
+                        <option value="Salary/Income" ${item.category==='Salary/Income'?'selected':''}>Salary/Income</option>
+                        <option value="Food" ${item.category==='Food'?'selected':''}>Food</option>
+                        <option value="Transport" ${item.category==='Transport'?'selected':''}>Transport</option>
+                        <option value="Shopping" ${item.category==='Shopping'?'selected':''}>Shopping</option>
+                        <option value="Bills" ${item.category==='Bills'?'selected':''}>Bills</option>
+                        <option value="Others" ${item.category==='Others'?'selected':''}>Others</option>
+                    </select>
+                `);
+
+                $colMemo.html(`<input type="text" class="edit-input edit-mem" value="${item.memo}" />`);
+                $colAmount.html(`<input type="number" class="edit-input edit-amt" min="1" value="${item.amount}" style="text-align:right;" />`);
+
+                var $saveBtn = $("<button>").addClass("action-btn save-btn").text("Save");
+                var $cancelBtn = $("<button>").addClass("action-btn cancel-btn").text("Cancel");
+                $colActions.empty().append($saveBtn, $cancelBtn);
+
+                $cancelBtn.on("click", function() {
+                    loadModalTransactions(currentSelectedDate);
+                });
+
+                // [수정] 2. 수정된 데이터를 Flask 서버로 전송 (PUT)
+                $saveBtn.on("click", function() {
+                    var updatedData = {
+                        type: $colInfo.find(".edit-type").val(),
+                        category: $colInfo.find(".edit-cat").val(),
+                        memo: $colMemo.find(".edit-mem").val(),
+                        amount: parseInt($colAmount.find(".edit-amt").val(), 10) || 0
+                    };
+
+                    $.ajax({
+                        url: '/api/transactions/' + item.id,
+                        type: 'PUT',
+                        contentType: 'application/json',
+                        data: JSON.stringify(updatedData),
+                        success: function() {
+                            // 로컬 메모리 업데이트 후 UI 갱신
+                            item.type = updatedData.type;
+                            item.category = updatedData.category;
+                            item.memo = updatedData.memo;
+                            item.amount = updatedData.amount;
+                            loadModalTransactions(currentSelectedDate);
+                            renderCalendar();
+                        }
+                    });
+                });
+            });
+
+            // [수정] 3. 삭제 처리 시 Flask 서버로 전송 (DELETE)
+            $deleteBtn.on("click", function() {
+                $.ajax({
+                    url: '/api/transactions/' + item.id,
+                    type: 'DELETE',
+                    success: function() {
+                        transactionDatabase[currentSelectedDate] = transactionDatabase[currentSelectedDate].filter(function(el) {
+                            return el.id !== item.id;
+                        });
+                        loadModalTransactions(currentSelectedDate);
+                        renderCalendar();
+                    }
+                });
+            });
+        });
+    }
+
+    $("#calendarGrid").on("click", "li:not(.day-title)", function() {
+        var chosenDateStr = $(this).attr("data-date");
+        loadModalTransactions(chosenDateStr);
+        $("#detailsModal").css("display", "flex");
+    });
+
+    $("#closeModal").on("click", function() { $("#detailsModal").hide(); });
+    $(window).on("click", function(e) {
+        if ($(e.target).is("#detailsModal")) $("#detailsModal").hide();
+    });
+
+    $("#prevMonth").on("click", function() { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
+    $("#nextMonth").on("click", function() { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
+    $(window).resize(renderCalendar);
+
+    // [수정] 4. 내역 추가(폼 제출) 시 Flask 서버로 전송 (POST)
+    $("#expenseForm").on("submit", function(e) {
+        e.preventDefault();
+
+        var dateVal = $("#expenseDate").val();
+        var typeVal = $("#transactionType").val();
+        var amountVal = parseInt($("#expenseAmount").val(), 10);
+        var categoryVal = $("#expenseCategory").val();
+        var memoVal = $("#expenseMemo").val();
+
+        if (!dateVal || isNaN(amountVal)) return;
+
+        var newTransaction = {
+            id: Date.now() + Math.random().toString(36).substr(2, 9),
+            date: dateVal,
+            type: typeVal,
+            amount: amountVal,
+            category: categoryVal,
+            memo: memoVal
+        };
+
+        $.ajax({
+            url: '/api/transactions',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(newTransaction),
+            success: function() {
+                if (!transactionDatabase[dateVal]) {
+                    transactionDatabase[dateVal] = [];
+                }
+                transactionDatabase[dateVal].push(newTransaction);
+                renderCalendar();
+
+                $("#expenseAmount").val("");
+                $("#expenseCategory").val("");
+                $("#expenseMemo").val("");
+            }
+        });
+    });
+
+    // [수정] 5. 최초 실행 시 데이터 로드 시작 함수 호출
+    loadInitialData();
+});
+</script>
+</body>
+</html>

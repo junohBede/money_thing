@@ -385,13 +385,13 @@
                 <input type="date" id="expenseDate" required>
             </div>
 
-            <div class="form-group">
+<!--             <div class="form-group"> // expense income autoselect
                 <label for="transactionType">Type</label>
                 <select id="transactionType" required>
                     <option value="expense">Expense (-)</option>
                     <option value="income">Income (+)</option>
                 </select>
-            </div>
+            </div> -->
             
             <div class="form-group">
                 <label for="expenseAmount">Amount ($)</label>
@@ -402,12 +402,24 @@
                 <label for="expenseCategory">Category</label>
                 <select id="expenseCategory" required>
                     <option value="" disabled selected>Select category</option>
-                    <option value="Salary/Income">Salary/Income</option>
-                    <option value="Food">Food</option>
-                    <option value="Transport">Transport</option>
-                    <option value="Shopping">Shopping</option>
-                    <option value="Bills">Bills</option>
-                    <option value="Others">Others</option>
+                    <option value="book">book</option>
+                    <option value="culture">culture</option>
+                    <option value="eat out">eat out</option>
+                    <option value="fee">fee</option>
+                    <option value="fun">fun</option>
+                    <option value="grocery">grocery</option>
+                    <option value="health">health</option>
+                    <option value="luck">luck</option>
+                    <option value="necesito">necesito</option>
+                    <option value="utility">utility</option>
+                    <option value="transport">transport</option>
+                    <option value="church">church</option>
+                    <option value="family">family</option>
+                    <option value="uncommon expense">uncommon expense</option>
+                    <option value="rent">rent</option>
+                    <option value="salary">salary</option>
+                    <option value="other income">other income</option>
+                    <option value="etc.">etc.</option>
                 </select>
             </div>
             
@@ -686,10 +698,13 @@ $(document).ready(function() {
         e.preventDefault();
 
         var dateVal = $("#expenseDate").val();
-        var typeVal = $("#transactionType").val();
+/*         var typeVal = $("#transactionType").val(); */
         var amountVal = parseInt($("#expenseAmount").val(), 10);
         var categoryVal = $("#expenseCategory").val();
         var memoVal = $("#expenseMemo").val();
+        
+        var incomeCategories = ["salary", "other income"];
+        var typeVal = incomeCategories.includes(categoryVal) ? "income" : "expense";
 
         if (!dateVal || isNaN(amountVal)) return;
 

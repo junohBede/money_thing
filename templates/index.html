@@ -370,7 +370,7 @@
             padding: 40px 20px;
             font-style: italic;
             background-color: #ffffff;
-        
+        }
         /* ==================== BALANCE CARD STYLE ==================== */
         .balance-card {
             background: linear-gradient(135deg, #1abc9c, #16a085);
@@ -395,7 +395,7 @@
             font-weight: bold;
             word-wrap: break-word;
         }
-        }
+        
     </style>
 </head>
 <body>
@@ -799,7 +799,6 @@ $(document).ready(function() {
                 }
                 transactionDatabase[dateVal].push(newTransaction);
                 renderCalendar();
-                updateRemainingBalance();
 
                 $("#expenseAmount").val("");
                 $("#expenseCategory").val("");

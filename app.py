@@ -7,10 +7,10 @@ DB_NAME = "cashbook.db"
 
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row  # 결과를 딕셔너리 형태로 편리하게 가져오기 위함
+    conn.row_factory = sqlite3.Row  # retrieve the results as dictionary form
     return conn
 
-# 앱이 처음 실행될 때 데이터베이스 테이블이 없으면 자동으로 만듭니다.
+# Initialize DB
 def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -27,23 +27,23 @@ def init_db():
     conn.commit()
     conn.close()
 
-# 1. 메인 가계부 페이지 렌더링
+# 1. Render main page 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# 2. 전체 가계부 데이터 조회 API (페이지 로드 시 호출)
+# 2. Look up the entire data
 @app.route('/api/transactions', methods=['GET'])
 def get_transactions():
     conn = get_db_connection()
     rows = conn.execute('SELECT * FROM transactions').fetchall()
     conn.close()
     
-    # Frontend something
+    # Frontend part
     data = [dict(row) for row in rows]
     return jsonify(data)
 
-# 3. 내역 추가 API
+# 3. Add value
 @app.route('/api/transactions', methods=['POST'])
 def add_transaction():
     tx_data = request.json
@@ -56,7 +56,7 @@ def add_transaction():
     conn.close()
     return jsonify({"status": "success"})
 
-# 4. 내역 수정 API
+# 4. Edit value
 @app.route('/api/transactions/<tx_id>', methods=['PUT'])
 def update_transaction(tx_id):
     tx_data = request.json
@@ -69,7 +69,7 @@ def update_transaction(tx_id):
     conn.close()
     return jsonify({"status": "success"})
 
-# 5. 내역 삭제 API
+# 5. Delete value
 @app.route('/api/transactions/<tx_id>', methods=['DELETE'])
 def delete_transaction(tx_id):
     conn = get_db_connection()
@@ -80,5 +80,5 @@ def delete_transaction(tx_id):
 
 if __name__ == '__main__':
     init_db()
-    # 테일스케일 접속을 위해 외부 오픈(0.0.0.0), 포트는 5000번 사용
+    # 0.0.0.0 for Tailscale
     app.run(host='0.0.0.0', port=5000, debug=True)

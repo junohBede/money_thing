@@ -370,6 +370,31 @@
             padding: 40px 20px;
             font-style: italic;
             background-color: #ffffff;
+        
+        /* ==================== BALANCE CARD STYLE ==================== */
+        .balance-card {
+            background: linear-gradient(135deg, #1abc9c, #16a085);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(26, 188, 156, 0.2);
+        }
+
+        .balance-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .balance-value {
+            font-size: 26px;
+            font-weight: bold;
+            word-wrap: break-word;
+        }
         }
     </style>
 </head>
@@ -378,6 +403,13 @@
 <div class="container">
     <!-- Left Input Sidebar -->
     <div class="form-area">
+        <div class="balance-card">
+            <div class="balance-label">Total Balance</div>
+            <div class="balance-value" id="totalBalanceDisplay">$0</div>
+        </div>
+
+        <h2>Add Transaction</h2>
+        <form id="expenseForm">
         <h2>Add Transaction</h2>
         <form id="expenseForm">
             <div class="form-group">
@@ -488,6 +520,7 @@ $(document).ready(function() {
                     transactionDatabase[item.date].push(item);
                 });
                 renderCalendar(); 
+                updateRemainingBalance();
             }
         });
     }
@@ -529,7 +562,30 @@ $(document).ready(function() {
 
         setCalendarHeight();
     }
+    // Balance update
+    function updateRemainingBalance() {
+        var totalIncome = 0;
+        var totalExpense = 0;
 
+        Object.keys(transactionDatabase).forEach(function(dateKey) {
+            transactionDatabase[dateKey].forEach(function(item) {
+                if (item.type === 'income') {
+                    totalIncome += item.amount;
+                } else {
+                    totalExpense += item.amount;
+                }
+            });
+        });
+
+        var finalBalance = totalIncome - totalExpense;
+        
+        // if the balance's negative
+        if (finalBalance >= 0) {
+            $("#totalBalanceDisplay").text("$" + finalBalance.toLocaleString()).css("color", "white");
+        } else {
+            $("#totalBalanceDisplay").text("-$" + Math.abs(finalBalance).toLocaleString()).css("color", "#ff7675");
+        }
+    }
     function appendDayCell($parent, displayNum, dateIsoStr, className) {
         var $li = $("<li>").addClass(className).attr("data-date", dateIsoStr);
         $li.append($("<span>").addClass("date-num").text(displayNum));
@@ -669,6 +725,7 @@ $(document).ready(function() {
                             item.amount = updatedData.amount;
                             loadModalTransactions(currentSelectedDate);
                             renderCalendar();
+                            updateRemainingBalance();
                         }
                     });
                 });
@@ -685,6 +742,7 @@ $(document).ready(function() {
                         });
                         loadModalTransactions(currentSelectedDate);
                         renderCalendar();
+                        updateRemainingBalance();
                     }
                 });
             });
@@ -741,6 +799,7 @@ $(document).ready(function() {
                 }
                 transactionDatabase[dateVal].push(newTransaction);
                 renderCalendar();
+                updateRemainingBalance();
 
                 $("#expenseAmount").val("");
                 $("#expenseCategory").val("");

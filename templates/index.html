@@ -461,13 +461,13 @@ $(document).ready(function() {
     var currentSelectedDate = ""; 
     var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-    // [추가] 1. 페이지가 켜지면 Flask DB로부터 기존 데이터를 전부 다 긁어옵니다.
+    // 1. Fetch data from Flask DB
     function loadInitialData() {
         $.ajax({
             url: '/api/transactions',
             type: 'GET',
             success: function(data) {
-                // 백엔드 리스트 데이터를 기존 JS가 쓰던 { "2026-05-01": [...] } 객체 구조로 재구성
+                // Reform data format of backend data
                 transactionDatabase = {};
                 data.forEach(function(item) {
                     if (!transactionDatabase[item.date]) {
@@ -475,7 +475,7 @@ $(document).ready(function() {
                     }
                     transactionDatabase[item.date].push(item);
                 });
-                renderCalendar(); // 데이터를 다 받아오면 달력을 그려줍니다.
+                renderCalendar(); 
             }
         });
     }
@@ -594,7 +594,7 @@ $(document).ready(function() {
             $row.append($colInfo, $colMemo, $colAmount, $colActions);
             $container.append($row);
 
-            // --- 수정 기능에 Ajax 동기화 ---
+            // --- Ajax sync ---
             $editBtn.on("click", function() {
                 $colInfo.html(`
                     <select class="edit-input edit-type" style="margin-bottom:4px;">
@@ -622,7 +622,7 @@ $(document).ready(function() {
                     loadModalTransactions(currentSelectedDate);
                 });
 
-                // [수정] 2. 수정된 데이터를 Flask 서버로 전송 (PUT)
+                // Send it to flask server
                 $saveBtn.on("click", function() {
                     var updatedData = {
                         type: $colInfo.find(".edit-type").val(),
@@ -637,7 +637,7 @@ $(document).ready(function() {
                         contentType: 'application/json',
                         data: JSON.stringify(updatedData),
                         success: function() {
-                            // 로컬 메모리 업데이트 후 UI 갱신
+                            // renew UI when local memory updated
                             item.type = updatedData.type;
                             item.category = updatedData.category;
                             item.memo = updatedData.memo;
@@ -649,7 +649,7 @@ $(document).ready(function() {
                 });
             });
 
-            // [수정] 3. 삭제 처리 시 Flask 서버로 전송 (DELETE)
+            // Delete function
             $deleteBtn.on("click", function() {
                 $.ajax({
                     url: '/api/transactions/' + item.id,
@@ -681,7 +681,7 @@ $(document).ready(function() {
     $("#nextMonth").on("click", function() { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
     $(window).resize(renderCalendar);
 
-    // [수정] 4. 내역 추가(폼 제출) 시 Flask 서버로 전송 (POST)
+    // Post function
     $("#expenseForm").on("submit", function(e) {
         e.preventDefault();
 
@@ -721,7 +721,7 @@ $(document).ready(function() {
         });
     });
 
-    // [수정] 5. 최초 실행 시 데이터 로드 시작 함수 호출
+    // Load data
     loadInitialData();
 });
 </script>

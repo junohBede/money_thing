@@ -6,6 +6,7 @@
     <title>Expense & Income Tracker Calendar</title>
     <!-- Include jQuery Library -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -463,6 +464,14 @@
     </div>
 
     <!-- Right Calendar View -->
+
+    <!-- chart -->
+    <div class="chart-container" style="position: relative; margin: 20px auto; padding: 15px; background: #2d3436; border-radius: 8px; max-width: 900px;">
+        <h3 style="color: white; margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; font-weight: 500;">📅 expenses</h3>
+        <canvas id="weeklyExpenseChart" style="max-height: 250px;"></canvas>
+    </div>
+
+
     <div class="calendar-area">
         <div class="calendar-header">
             <button class="nav-btn" id="prevMonth">&lt; Prev</button>
@@ -807,6 +816,125 @@ $(document).ready(function() {
 
     // Load data
     loadInitialData();
+});
+// global variable of chart
+var expenseChartInstance = null;
+
+// colour map for chart
+var categoryColors = {
+    'eat out': '#ff7675',
+    'necesito': '#74b9ff',
+    'utility': '#ffeaa7',
+    'uncommon expense': '#a29bfe',
+    'church': '#55efc4',
+    'fun': '#fd79a8',
+    'fee': '#fab1a0',
+    'other': '#b2bec3'
+};
+
+function updateWeeklyChart() {
+    var ctx = document.getElementById('weeklyExpenseChart').getContext('2d');
+    
+    // 1. 7 days' array
+    var labels = [];
+    var dateKeys = [];
+    for (var i = 6; i >= 0; i--) {
+        var d = new Date();
+        d.setDate(d.getDate() - i);
+        
+        // formatting for date
+        var month = d.getMonth() + 1;
+        var day = d.getDate();
+        var year = d.getFullYear();
+        
+        var csvFormatKey = month + "/" + day + "/" + year; 
+        
+        labels.push(month + '/' + day); // (ex: 1/8)
+        dateKeys.push(csvFormatKey);
+    }
+
+    // 2. Parsing categories of db
+    var categories = new Set();
+    Object.keys(transactionDatabase).forEach(function(dateKey) {
+        transactionDatabase[dateKey].forEach(function(item) {
+            if (item.type === 'expense') {
+                categories.add(item.category || 'other');
+            }
+        });
+    });
+
+    // 3. Dataset for chart build
+    var datasets = Array.from(categories).map(function(cat) {
+        var dataPoints = dateKeys.map(function(dateKey) {
+            var sum = 0;
+            if (transactionDatabase[dateKey]) {
+                transactionDatabase[dateKey].forEach(function(item) {
+                    if (item.type === 'expense' && (item.category || 'other') === cat) {
+                        sum += item.amount;
+                    }
+                });
+            }
+            return sum;
+        });
+
+        return {
+            label: cat,
+            data: dataPoints,
+            backgroundColor: categoryColors[cat] || categoryColors['other'],
+            barPercentage: 0.6
+        };
+    });
+
+    // 4. Renew chart
+    if (expenseChartInstance !== null) {
+        expenseChartInstance.destroy();
+    }
+
+    // 5. Chart.js 
+    expenseChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    stacked: true, // Stacking 
+                    grid: { display: false },
+                    ticks: { color: '#b2bec3' }
+                },
+                y: {
+                    stacked: true, 
+                    grid: { color: '#636e72' },
+                    ticks: { 
+                        color: '#b2bec3',
+                        callback: function(value) { return '$' + value; }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { color: 'white', boxWidth: 12 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': $' + context.raw.toFixed(2);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// new
+$(document).ready(function() {
+    updateWeeklyChart();
 });
 </script>
 </body>

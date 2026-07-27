@@ -19,7 +19,7 @@ def init_db():
             id TEXT PRIMARY KEY,
             date TEXT NOT NULL,
             type TEXT NOT NULL,
-            amount INTEGER NOT NULL,
+            amount REAL NOT NULL,
             category TEXT NOT NULL,
             memo TEXT
         )

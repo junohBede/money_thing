@@ -464,13 +464,19 @@
     </div>
 
     <!-- Right Calendar View -->
-
-    <!-- chart -->
-    <div class="chart-container" style="position: relative; margin: 20px auto; padding: 15px; background: #2d3436; border-radius: 8px; max-width: 900px;">
-        <h3 style="color: white; margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; font-weight: 500;">📅 expenses</h3>
-        <canvas id="weeklyExpenseChart" style="max-height: 250px;"></canvas>
-    </div>
-
+    <div class="charts-row" style="display: flex; gap: 20px; max-width: 900px; margin: 20px auto; padding: 15px; background: #2d3436; border-radius: 8px; flex-wrap: wrap;">
+        
+        <!-- 1. acculation of MY expense -->
+        <div class="chart-box" style="flex: 1; min-width: 300px; height: 260px; position: relative;">
+            <h3 style="color: white; margin-top: 0; margin-bottom: 10px; font-size: 1rem; font-weight: 500;">📅 Expense of recent 7 days </h3>
+            <canvas id="weeklyExpenseChart"></canvas>
+        </div>
+        
+        <!-- 2. budgetting -->
+        <div class="chart-box" style="flex: 1; min-width: 300px; height: 260px; position: relative;">
+            <h3 style="color: white; margin-top: 0; margin-bottom: 10px; font-size: 1rem; font-weight: 500;">💰 이달의 예산 대비 지출 현황</h3>
+            <canvas id="budgetCompareChart"></canvas>
+        </div>
 
     <div class="calendar-area">
         <div class="calendar-header">

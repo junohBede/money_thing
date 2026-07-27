@@ -511,6 +511,29 @@ $(document).ready(function() {
     var currentDate = new Date();
     var currentSelectedDate = ""; 
     var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    
+    // 차트 인스턴스 전역 변수 관리 (ready 블록 내부)
+    var expenseChartInstance = null;
+
+    // 카테고리별 고정 컬러맵
+    var categoryColors = {
+        'book': '#a29bfe',
+        'culture': '#ffeaa7',
+        'eat out': '#ff7675',
+        'fee': '#fab1a0',
+        'fun': '#fd79a8',
+        'grocery': '#55efc4',
+        'health': '#ffeaa7',
+        'luck': '#fdcb6e',
+        'necesito': '#74b9ff',
+        'utility': '#dfe6e9',
+        'transport': '#81ecec',
+        'church': '#55efc4',
+        'family': '#a29bfe',
+        'uncommon expense': '#fd79a8',
+        'rent': '#fab1a0',
+        'other': '#b2bec3'
+    };
 
     // Fetch data from Flask DB
     function loadInitialData() {
@@ -518,7 +541,6 @@ $(document).ready(function() {
             url: '/api/transactions',
             type: 'GET',
             success: function(data) {
-                // Reform data format of backend data
                 transactionDatabase = {};
                 data.forEach(function(item) {
                     if (!transactionDatabase[item.date]) {
@@ -528,6 +550,7 @@ $(document).ready(function() {
                 });
                 renderCalendar(); 
                 updateRemainingBalance();
+                updateWeeklyChart(); // 초기 로드 시 차트 그리기
             }
         });
     }
@@ -569,6 +592,7 @@ $(document).ready(function() {
 
         setCalendarHeight();
     }
+
     // Balance update
     function updateRemainingBalance() {
         var totalIncome = 0;
@@ -586,13 +610,121 @@ $(document).ready(function() {
 
         var finalBalance = totalIncome - totalExpense;
         
-        // if the balance's negative
+        var formattedBalance = Number(finalBalance.toFixed(2)).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+        
         if (finalBalance >= 0) {
-            $("#totalBalanceDisplay").text("$" + finalBalance.toLocaleString()).css("color", "white");
+            $("#totalBalanceDisplay").text("$" + formattedBalance).css("color", "white");
         } else {
-            $("#totalBalanceDisplay").text("-$" + Math.abs(finalBalance).toLocaleString()).css("color", "#ff7675");
+            var negativeFormatted = Number(Math.abs(finalBalance).toFixed(2)).toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            $("#totalBalanceDisplay").text("-$" + negativeFormatted).css("color", "#ff7675");
         }
     }
+
+    // 7일 지출 그래프 갱신 함수 (ready 블록 내부 배치)
+    function updateWeeklyChart() {
+        var canvas = document.getElementById('weeklyExpenseChart');
+        if (!canvas) return; // 차트 엘리먼트가 없으면 중단
+        var ctx = canvas.getContext('2d');
+        
+        var labels = [];
+        var dateKeys = [];
+        
+        for (var i = 6; i >= 0; i--) {
+            var d = new Date();
+            d.setDate(d.getDate() - i);
+            
+            var month = d.getMonth() + 1;
+            var day = d.getDate();
+            var year = d.getFullYear();
+            
+            // 캘린더 및 DB 내부 표준 포맷인 YYYY-MM-DD 기법으로 조회 키 통일
+            var formattedKey = formatDateString(year, d.getMonth(), day); 
+            
+            labels.push(month + '/' + day); 
+            dateKeys.push(formattedKey);
+        }
+
+        var categories = new Set();
+        Object.keys(transactionDatabase).forEach(function(dateKey) {
+            transactionDatabase[dateKey].forEach(function(item) {
+                if (item.type === 'expense') {
+                    categories.add(item.category || 'other');
+                }
+            });
+        });
+
+        var datasets = Array.from(categories).map(function(cat) {
+            var dataPoints = dateKeys.map(function(dateKey) {
+                var sum = 0;
+                if (transactionDatabase[dateKey]) {
+                    transactionDatabase[dateKey].forEach(function(item) {
+                        if (item.type === 'expense' && (item.category || 'other') === cat) {
+                            sum += item.amount;
+                        }
+                    });
+                }
+                return sum;
+            });
+
+            return {
+                label: cat,
+                data: dataPoints,
+                backgroundColor: categoryColors[cat] || categoryColors['other'],
+                barPercentage: 0.6
+            };
+        });
+
+        if (expenseChartInstance !== null) {
+            expenseChartInstance.destroy();
+        }
+
+        expenseChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        stacked: true, 
+                        grid: { display: false },
+                        ticks: { color: '#b2bec3' }
+                    },
+                    y: {
+                        stacked: true, 
+                        grid: { color: '#636e72' },
+                        ticks: { 
+                            color: '#b2bec3',
+                            callback: function(value) { return '$' + value; }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: 'white', boxWidth: 12 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': $' + context.raw.toFixed(2);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     function appendDayCell($parent, displayNum, dateIsoStr, className) {
         var $li = $("<li>").addClass(className).attr("data-date", dateIsoStr);
         $li.append($("<span>").addClass("date-num").text(displayNum));
@@ -606,8 +738,8 @@ $(document).ready(function() {
                 else expSum += item.amount;
             });
 
-            if (incSum > 0) $displayDiv.append($("<div>").addClass("income-text").text("+" + incSum.toLocaleString()));
-            if (expSum > 0) $displayDiv.append($("<div>").addClass("expense-text").text("-" + expSum.toLocaleString()));
+            if (incSum > 0) $displayDiv.append($("<div>").addClass("income-text").text("+" + incSum.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})));
+            if (expSum > 0) $displayDiv.append($("<div>").addClass("expense-text").text("-" + expSum.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})));
         }
         
         $li.append($displayDiv);
@@ -659,7 +791,7 @@ $(document).ready(function() {
             );
 
             var $colMemo = $("<div>").addClass("row-memo").text(item.memo || "—");
-            var $colAmount = $("<div>").addClass("row-amount " + colorClass).text(sign + "$" + item.amount.toLocaleString());
+            var $colAmount = $("<div>").addClass("row-amount " + colorClass).text(sign + "$" + item.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
 
             var $colActions = $("<div>").addClass("row-actions");
             var $editBtn = $("<button>").addClass("action-btn edit-btn").text("Edit");
@@ -669,7 +801,6 @@ $(document).ready(function() {
             $row.append($colInfo, $colMemo, $colAmount, $colActions);
             $container.append($row);
 
-            // --- Ajax sync ---
             $editBtn.on("click", function() {
                 $colInfo.html(`
                     <select class="edit-input edit-cat">
@@ -695,7 +826,7 @@ $(document).ready(function() {
                 `);
 
                 $colMemo.html(`<input type="text" class="edit-input edit-mem" value="${item.memo}" />`);
-                $colAmount.html(`<input type="number" class="edit-input edit-amt" min="1" value="${item.amount}" style="text-align:right;" />`);
+                $colAmount.html(`<input type="number" class="edit-input edit-amt" min="0.01" step="0.01" value="${item.amount}" style="text-align:right;" />`);
 
                 var $saveBtn = $("<button>").addClass("action-btn save-btn").text("Save");
                 var $cancelBtn = $("<button>").addClass("action-btn cancel-btn").text("Cancel");
@@ -705,11 +836,8 @@ $(document).ready(function() {
                     loadModalTransactions(currentSelectedDate);
                 });
 
-                // Send it to flask server
                 $saveBtn.on("click", function() {
                     var selectedCat = $colInfo.find(".edit-cat").val();
-                    
-                    // autoselection of income expense
                     var autoType = (selectedCat === "salary" || selectedCat === "other income") ? "income" : "expense";
 
                     var updatedData = {
@@ -725,7 +853,6 @@ $(document).ready(function() {
                         contentType: 'application/json',
                         data: JSON.stringify(updatedData),
                         success: function() {
-                            // Renew the cal
                             item.type = updatedData.type;
                             item.category = updatedData.category;
                             item.memo = updatedData.memo;
@@ -733,12 +860,12 @@ $(document).ready(function() {
                             loadModalTransactions(currentSelectedDate);
                             renderCalendar();
                             updateRemainingBalance();
+                            updateWeeklyChart(); // 수정 시 그래프 실시간 갱신
                         }
                     });
                 });
             });
 
-            // Delete function
             $deleteBtn.on("click", function() {
                 $.ajax({
                     url: '/api/transactions/' + item.id,
@@ -750,6 +877,7 @@ $(document).ready(function() {
                         loadModalTransactions(currentSelectedDate);
                         renderCalendar();
                         updateRemainingBalance();
+                        updateWeeklyChart(); // 삭제 시 그래프 실시간 갱신
                     }
                 });
             });
@@ -776,7 +904,6 @@ $(document).ready(function() {
         e.preventDefault();
 
         var dateVal = $("#expenseDate").val();
-/*         var typeVal = $("#transactionType").val(); */
         var amountVal = parseFloat($("#expenseAmount").val());
         var categoryVal = $("#expenseCategory").val();
         var memoVal = $("#expenseMemo").val();
@@ -806,6 +933,8 @@ $(document).ready(function() {
                 }
                 transactionDatabase[dateVal].push(newTransaction);
                 renderCalendar();
+                updateRemainingBalance();
+                updateWeeklyChart(); // 내역 추가 시 그래프 실시간 갱신
 
                 $("#expenseAmount").val("");
                 $("#expenseCategory").val("");
@@ -814,128 +943,9 @@ $(document).ready(function() {
         });
     });
 
-    // Load data
     loadInitialData();
 });
-// global variable of chart
-var expenseChartInstance = null;
 
-// colour map for chart
-var categoryColors = {
-    'eat out': '#ff7675',
-    'necesito': '#74b9ff',
-    'utility': '#ffeaa7',
-    'uncommon expense': '#a29bfe',
-    'church': '#55efc4',
-    'fun': '#fd79a8',
-    'fee': '#fab1a0',
-    'other': '#b2bec3'
-};
-
-function updateWeeklyChart() {
-    var ctx = document.getElementById('weeklyExpenseChart').getContext('2d');
-    
-    // 1. 7 days' array
-    var labels = [];
-    var dateKeys = [];
-    for (var i = 6; i >= 0; i--) {
-        var d = new Date();
-        d.setDate(d.getDate() - i);
-        
-        // formatting for date
-        var month = d.getMonth() + 1;
-        var day = d.getDate();
-        var year = d.getFullYear();
-        
-        var csvFormatKey = month + "/" + day + "/" + year; 
-        
-        labels.push(month + '/' + day); // (ex: 1/8)
-        dateKeys.push(csvFormatKey);
-    }
-
-    // 2. Parsing categories of db
-    var categories = new Set();
-    Object.keys(transactionDatabase).forEach(function(dateKey) {
-        transactionDatabase[dateKey].forEach(function(item) {
-            if (item.type === 'expense') {
-                categories.add(item.category || 'other');
-            }
-        });
-    });
-
-    // 3. Dataset for chart build
-    var datasets = Array.from(categories).map(function(cat) {
-        var dataPoints = dateKeys.map(function(dateKey) {
-            var sum = 0;
-            if (transactionDatabase[dateKey]) {
-                transactionDatabase[dateKey].forEach(function(item) {
-                    if (item.type === 'expense' && (item.category || 'other') === cat) {
-                        sum += item.amount;
-                    }
-                });
-            }
-            return sum;
-        });
-
-        return {
-            label: cat,
-            data: dataPoints,
-            backgroundColor: categoryColors[cat] || categoryColors['other'],
-            barPercentage: 0.6
-        };
-    });
-
-    // 4. Renew chart
-    if (expenseChartInstance !== null) {
-        expenseChartInstance.destroy();
-    }
-
-    // 5. Chart.js 
-    expenseChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: datasets
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    stacked: true, // Stacking 
-                    grid: { display: false },
-                    ticks: { color: '#b2bec3' }
-                },
-                y: {
-                    stacked: true, 
-                    grid: { color: '#636e72' },
-                    ticks: { 
-                        color: '#b2bec3',
-                        callback: function(value) { return '$' + value; }
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    position: 'top',
-                    labels: { color: 'white', boxWidth: 12 }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': $' + context.raw.toFixed(2);
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-// new
-$(document).ready(function() {
-    updateWeeklyChart();
-});
 </script>
 </body>
 </html>

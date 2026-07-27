@@ -473,7 +473,7 @@ $(document).ready(function() {
     var currentSelectedDate = ""; 
     var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-    // 1. Fetch data from Flask DB
+    // Fetch data from Flask DB
     function loadInitialData() {
         $.ajax({
             url: '/api/transactions',
@@ -609,17 +609,25 @@ $(document).ready(function() {
             // --- Ajax sync ---
             $editBtn.on("click", function() {
                 $colInfo.html(`
-                    <select class="edit-input edit-type" style="margin-bottom:4px;">
-                        <option value="expense" ${item.type==='expense'?'selected':''}>EXPENSE</option>
-                        <option value="income" ${item.type==='income'?'selected':''}>INCOME</option>
-                    </select>
                     <select class="edit-input edit-cat">
-                        <option value="Salary/Income" ${item.category==='Salary/Income'?'selected':''}>Salary/Income</option>
-                        <option value="Food" ${item.category==='Food'?'selected':''}>Food</option>
-                        <option value="Transport" ${item.category==='Transport'?'selected':''}>Transport</option>
-                        <option value="Shopping" ${item.category==='Shopping'?'selected':''}>Shopping</option>
-                        <option value="Bills" ${item.category==='Bills'?'selected':''}>Bills</option>
-                        <option value="Others" ${item.category==='Others'?'selected':''}>Others</option>
+                        <option value="book" ${item.category==='book'?'selected':''}>book</option>
+                        <option value="culture" ${item.category==='culture'?'selected':''}>culture</option>
+                        <option value="eat out" ${item.category==='eat out'?'selected':''}>eat out</option>
+                        <option value="fee" ${item.category==='fee'?'selected':''}>fee</option>
+                        <option value="fun" ${item.category==='fun'?'selected':''}>fun</option>
+                        <option value="grocery" ${item.category==='grocery'?'selected':''}>grocery</option>
+                        <option value="health" ${item.category==='health'?'selected':''}>health</option>
+                        <option value="luck" ${item.category==='luck'?'selected':''}>luck</option>
+                        <option value="necesito" ${item.category==='necesito'?'selected':''}>necesito</option>
+                        <option value="utility" ${item.category==='utility'?'selected':''}>utility</option>
+                        <option value="transport" ${item.category==='transport'?'selected':''}>transport</option>
+                        <option value="church" ${item.category==='church'?'selected':''}>church</option>
+                        <option value="family" ${item.category==='family'?'selected':''}>family</option>
+                        <option value="uncommon expense" ${item.category==='uncommon expense'?'selected':''}>uncommon expense</option>
+                        <option value="rent" ${item.category==='rent'?'selected':''}>rent</option>
+                        <option value="salary" ${item.category==='salary'?'selected':''}>salary</option>
+                        <option value="other income" ${item.category==='other income'?'selected':''}>other income</option>
+                        <option value="etc." ${item.category==='etc.'?'selected':''}>etc.</option>
                     </select>
                 `);
 
@@ -636,9 +644,14 @@ $(document).ready(function() {
 
                 // Send it to flask server
                 $saveBtn.on("click", function() {
+                    var selectedCat = $colInfo.find(".edit-cat").val();
+                    
+                    // autoselection of income expense
+                    var autoType = (selectedCat === "salary" || selectedCat === "other income") ? "income" : "expense";
+
                     var updatedData = {
-                        type: $colInfo.find(".edit-type").val(),
-                        category: $colInfo.find(".edit-cat").val(),
+                        type: autoType,
+                        category: selectedCat,
                         memo: $colMemo.find(".edit-mem").val(),
                         amount: parseInt($colAmount.find(".edit-amt").val(), 10) || 0
                     };
@@ -649,7 +662,7 @@ $(document).ready(function() {
                         contentType: 'application/json',
                         data: JSON.stringify(updatedData),
                         success: function() {
-                            // renew UI when local memory updated
+                            // Renew the cal
                             item.type = updatedData.type;
                             item.category = updatedData.category;
                             item.memo = updatedData.memo;

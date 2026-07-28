@@ -15,25 +15,83 @@
         }
         
         html, body {
-            height: 100%;
-            width: 100%;
             margin: 0;
             padding: 0;
             font-family: 'Helvetica', Arial, sans-serif;
             background-color: #f5f6fa;
             color: #2f3640;
+            /* 데스크톱은 꽉 차게, 모바일은 컨텐츠만큼 늘어나도록 유연하게 설정 */
+            height: 100%;
+            width: 100%;
         }
 
         .container {
             display: flex;
             flex-direction: column;
-            height: 100%;
             width: 100%;
         }
 
+        /* 데스크톱(태블릿 이상) 뷰 스타일 */
         @media (min-width: 768px) {
             .container {
                 flex-direction: row;
+                height: 100vh;
+                overflow: hidden;
+            }
+            .form-area {
+                width: 320px;
+                height: 100%;
+                overflow-y: auto;
+            }
+            .content-area {
+                flex: 1;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            .calendar-body {
+                flex: 1;
+                position: relative;
+            }
+            #fullDiv {
+                position: absolute;
+                left: 0; top: 0; bottom: 0; right: 0;
+            }
+            li {
+                /* 데스크톱에서는 6줄이 꽉 차도록 자바스크립트로 동적 계산 */
+                height: auto; 
+            }
+        }
+
+        /* 모바일 뷰 스타일 개편 */
+        @media (max-width: 767px) {
+            html, body {
+                height: auto;
+                overflow-y: auto; /* 페이지 전체 스크롤 허용 */
+            }
+            .container {
+                height: auto;
+            }
+            .form-area {
+                width: 100%;
+            }
+            .content-area {
+                width: 100%;
+                display: block; /* 높이 제한 해제 */
+            }
+            .calendar-body {
+                overflow-x: auto; /* 좌우 스크롤로 격자 깨짐 보호 */
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 15px;
+            }
+            #fullDiv {
+                position: relative; /* 높이 축소 현상 방지 */
+                min-width: 700px; /* 격자가 너무 좁아지지 않게 최소 너비 고정 */
+            }
+            li {
+                height: 90px !important; /* 모바일 날짜 칸 높이 고정 */
+                line-height: 90px !important;
             }
         }
 
@@ -42,15 +100,6 @@
             background-color: #ffffff;
             padding: 20px;
             box-shadow: 2px 0 5px rgba(0,0,0,0.05);
-            width: 100%;
-        }
-
-        @media (min-width: 768px) {
-            .form-area {
-                width: 320px;
-                height: 100%;
-                overflow-y: auto;
-            }
         }
 
         .form-area h2 {
@@ -95,12 +144,9 @@
 
         /* Calendar Area Container */
         .calendar-area {
-            flex: 1;
+            background-color: #ffffff;
             display: flex;
             flex-direction: column;
-            background-color: #ffffff;
-            height: 100%;
-            min-width: 0; /* Flexbox text cutting fix */
         }
 
         .calendar-header {
@@ -132,31 +178,11 @@
             background-color: #16a085;
         }
 
-        .calendar-body {
-            flex: 1;
-            position: relative;
-            /* Mobile View Protection */
-            overflow-x: auto; 
-            overflow-y: hidden;
-        }
-
-        #fullDiv {
-            position: absolute;
-            margin: 0;
-            padding: 0;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            right: 0;
-            /* Give it a minimum width on mobile so content doesn't squeeze */
-            min-width: 600px; 
-        }
-
         ul {
             margin: 0;
             padding: 0;
             width: 100%;
-            height: 100%;
+            display: flow-root; /* float 자식 인식을 위한 설정 */
         }
 
         li {
@@ -167,13 +193,14 @@
             list-style-type: none;
             position: relative;
             border: 1px solid #f1f2f6;
-            overflow: hidden;
         }
 
         .day-title {
             font-weight: 900;
             color: #e67e22;
             background-color: #fff5e6;
+            height: 40px !important;
+            line-height: 40px !important;
         }
 
         .not-current-month {
@@ -213,7 +240,6 @@
             font-size: 11px;
             text-align: right;
             line-height: 1.3;
-            /* Wrap numbers inside narrow mobile grid cells */
             word-break: break-all; 
         }
 
@@ -462,14 +488,15 @@
         </form>
     </div>
 
-    <!-- Right Calendar & Chart View -->
-    <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
-        <!-- chart -->
+    <!-- Right Side Content Wrapper (Chart + Calendar) -->
+    <div class="content-area">
+        <!-- Chart Section -->
         <div class="chart-container" style="position: relative; margin: 20px; padding: 15px; background: #2d3436; border-radius: 8px;">
             <h3 style="color: white; margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; font-weight: 500;">📅 expenses</h3>
-            <canvas id="weeklyExpenseChart" style="max-height: 250px;"></canvas>
+            <canvas id="weeklyExpenseChart" style="max-height: 250px; min-height: 200px;"></canvas>
         </div>
 
+        <!-- Calendar Section -->
         <div class="calendar-area">
             <div class="calendar-header">
                 <button class="nav-btn" id="prevMonth">&lt; Prev</button>
@@ -510,7 +537,7 @@ $(document).ready(function() {
     var currentSelectedDate = ""; 
     var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     
-    // 일주일 예산 설정 변수 (원하는 기준 금액을 입력하세요)
+    // 일주일 예산 설정 변수
     var WEEKLY_BUDGET = 200.00; 
 
     var expenseChartInstance = null;
@@ -606,18 +633,15 @@ $(document).ready(function() {
         });
 
         var finalBalance = totalIncome - totalExpense;
-        
         var formattedBalance = Number(finalBalance.toFixed(2)).toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
+            minimumFractionDigits: 2, maximumFractionDigits: 2
         });
         
         if (finalBalance >= 0) {
             $("#totalBalanceDisplay").text("$" + formattedBalance).css("color", "white");
         } else {
             var negativeFormatted = Number(Math.abs(finalBalance).toFixed(2)).toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
+                minimumFractionDigits: 2, maximumFractionDigits: 2
             });
             $("#totalBalanceDisplay").text("-$" + negativeFormatted).css("color", "#ff7675");
         }
@@ -715,7 +739,6 @@ $(document).ready(function() {
                             }
                         }
                     },
-                    // Annotation 플러그인으로 예산 기준 수평선 적용
                     annotation: {
                         annotations: {
                             budgetLine: {
@@ -769,13 +792,13 @@ $(document).ready(function() {
     }
 
     function setCalendarHeight() {
+        // 모바일 화면일 때는 자바스크립트로 높이를 강제 계산하지 않음
+        if ($(window).width() < 768) {
+            return;
+        }
         var availableHeight = $(".calendar-body").height();
         var height = (availableHeight / 6);
-        if ($(window).width() < 768) {
-            $("li").css({ "height": "85px", "line-height": "85px" });
-        } else {
-            $("li").css({ "height": height + "px", "line-height": height + "px" });
-        }
+        $(".calendar-body li:not(.day-title)").css({ "height": height + "px", "line-height": height + "px" });
     }
 
     function loadModalTransactions(dateStr) {

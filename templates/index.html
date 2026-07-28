@@ -7,6 +7,8 @@
     <!-- Include jQuery Library -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chart.js Annotation Plugin for Budget Line -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -98,6 +100,7 @@
             flex-direction: column;
             background-color: #ffffff;
             height: 100%;
+            min-width: 0; /* Flexbox text cutting fix */
         }
 
         .calendar-header {
@@ -132,6 +135,9 @@
         .calendar-body {
             flex: 1;
             position: relative;
+            /* Mobile View Protection */
+            overflow-x: auto; 
+            overflow-y: hidden;
         }
 
         #fullDiv {
@@ -142,7 +148,8 @@
             top: 0;
             bottom: 0;
             right: 0;
-            overflow: hidden; 
+            /* Give it a minimum width on mobile so content doesn't squeeze */
+            min-width: 600px; 
         }
 
         ul {
@@ -160,6 +167,7 @@
             list-style-type: none;
             position: relative;
             border: 1px solid #f1f2f6;
+            overflow: hidden;
         }
 
         .day-title {
@@ -205,6 +213,8 @@
             font-size: 11px;
             text-align: right;
             line-height: 1.3;
+            /* Wrap numbers inside narrow mobile grid cells */
+            word-break: break-all; 
         }
 
         .income-text { color: #2ecc71; }
@@ -230,7 +240,7 @@
             padding: 35px;
             border-radius: 12px;
             width: 95%;
-            max-width: 800px; /* Widened slightly to fit fields nicely */
+            max-width: 800px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
             position: relative;
             animation: fadeIn 0.2s ease-out;
@@ -261,7 +271,6 @@
             padding-bottom: 12px;
         }
 
-        /* Structured Row Table View styles */
         .list-wrapper {
             max-height: 400px;
             overflow-y: auto;
@@ -271,7 +280,7 @@
 
         .table-header, .transaction-row {
             display: grid;
-            grid-template-columns: 140px 1fr 120px 140px; /* Exact structured columns alignment */
+            grid-template-columns: 140px 1fr 120px 140px;
             align-items: center;
             padding: 12px 16px;
             gap: 12px;
@@ -301,7 +310,6 @@
             background-color: #fafbfc;
         }
 
-        /* Pill style type labels */
         .type-badge {
             display: inline-block;
             padding: 4px 8px;
@@ -354,7 +362,6 @@
         .save-btn { background-color: #1abc9c; color: white; }
         .cancel-btn { background-color: #cbd5e1; color: #475569; }
 
-        /* Editing Elements Control styles */
         .edit-input {
             width: 100%;
             padding: 6px 8px;
@@ -372,7 +379,7 @@
             font-style: italic;
             background-color: #ffffff;
         }
-        /* ==================== BALANCE CARD STYLE ==================== */
+
         .balance-card {
             background: linear-gradient(135deg, #1abc9c, #16a085);
             color: white;
@@ -415,14 +422,6 @@
                 <label for="expenseDate">Date</label>
                 <input type="date" id="expenseDate" required>
             </div>
-
-<!--             <div class="form-group"> // expense income autoselect
-                <label for="transactionType">Type</label>
-                <select id="transactionType" required>
-                    <option value="expense">Expense (-)</option>
-                    <option value="income">Income (+)</option>
-                </select>
-            </div> -->
             
             <div class="form-group">
                 <label for="expenseAmount">Amount ($)</label>
@@ -463,25 +462,24 @@
         </form>
     </div>
 
-    <!-- Right Calendar View -->
-
-    <!-- chart -->
-    <div class="chart-container" style="position: relative; margin: 20px auto; padding: 15px; background: #2d3436; border-radius: 8px; max-width: 900px;">
-        <h3 style="color: white; margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; font-weight: 500;">📅 expenses</h3>
-        <canvas id="weeklyExpenseChart" style="max-height: 250px;"></canvas>
-    </div>
-
-    
-
-    <div class="calendar-area">
-        <div class="calendar-header">
-            <button class="nav-btn" id="prevMonth">&lt; Prev</button>
-            <h3 id="monthYearDisplay">May 2026</h3>
-            <button class="nav-btn" id="nextMonth">Next &gt;</button>
+    <!-- Right Calendar & Chart View -->
+    <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+        <!-- chart -->
+        <div class="chart-container" style="position: relative; margin: 20px; padding: 15px; background: #2d3436; border-radius: 8px;">
+            <h3 style="color: white; margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; font-weight: 500;">📅 expenses</h3>
+            <canvas id="weeklyExpenseChart" style="max-height: 250px;"></canvas>
         </div>
-        <div class="calendar-body">
-            <div id='fullDiv'>
-                <ul id="calendarGrid"></ul>
+
+        <div class="calendar-area">
+            <div class="calendar-header">
+                <button class="nav-btn" id="prevMonth">&lt; Prev</button>
+                <h3 id="monthYearDisplay">May 2026</h3>
+                <button class="nav-btn" id="nextMonth">Next &gt;</button>
+            </div>
+            <div class="calendar-body">
+                <div id='fullDiv'>
+                    <ul id="calendarGrid"></ul>
+                </div>
             </div>
         </div>
     </div>
@@ -494,7 +492,6 @@
         <h3 id="modalDateTitle">Transactions Summary</h3>
         
         <div class="list-wrapper">
-            <!-- Table Header Definitions -->
             <div class="table-header" id="modalTableHeader">
                 <div>Type / Category</div>
                 <div>Description / Memo</div>
@@ -513,10 +510,11 @@ $(document).ready(function() {
     var currentSelectedDate = ""; 
     var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     
-    // 차트 인스턴스 전역 변수 관리 (ready 블록 내부)
+    // 일주일 예산 설정 변수 (원하는 기준 금액을 입력하세요)
+    var WEEKLY_BUDGET = 200.00; 
+
     var expenseChartInstance = null;
 
-    // 카테고리별 고정 컬러맵
     var categoryColors = {
         'book': '#a29bfe',
         'culture': '#ffeaa7',
@@ -536,7 +534,6 @@ $(document).ready(function() {
         'other': '#b2bec3'
     };
 
-    // Fetch data from Flask DB
     function loadInitialData() {
         $.ajax({
             url: '/api/transactions',
@@ -551,7 +548,7 @@ $(document).ready(function() {
                 });
                 renderCalendar(); 
                 updateRemainingBalance();
-                updateWeeklyChart(); // 초기 로드 시 차트 그리기
+                updateWeeklyChart();
             }
         });
     }
@@ -594,7 +591,6 @@ $(document).ready(function() {
         setCalendarHeight();
     }
 
-    // Balance update
     function updateRemainingBalance() {
         var totalIncome = 0;
         var totalExpense = 0;
@@ -627,10 +623,9 @@ $(document).ready(function() {
         }
     }
 
-    // 7일 지출 그래프 갱신 함수 (ready 블록 내부 배치)
     function updateWeeklyChart() {
         var canvas = document.getElementById('weeklyExpenseChart');
-        if (!canvas) return; // 차트 엘리먼트가 없으면 중단
+        if (!canvas) return; 
         var ctx = canvas.getContext('2d');
         
         var labels = [];
@@ -644,7 +639,6 @@ $(document).ready(function() {
             var day = d.getDate();
             var year = d.getFullYear();
             
-            // 캘린더 및 DB 내부 표준 포맷인 YYYY-MM-DD 기법으로 조회 키 통일
             var formattedKey = formatDateString(year, d.getMonth(), day); 
             
             labels.push(month + '/' + day); 
@@ -718,6 +712,27 @@ $(document).ready(function() {
                         callbacks: {
                             label: function(context) {
                                 return context.dataset.label + ': $' + context.raw.toFixed(2);
+                            }
+                        }
+                    },
+                    // Annotation 플러그인으로 예산 기준 수평선 적용
+                    annotation: {
+                        annotations: {
+                            budgetLine: {
+                                type: 'line',
+                                yMin: WEEKLY_BUDGET,
+                                yMax: WEEKLY_BUDGET,
+                                borderColor: '#e74c3c',
+                                borderWidth: 2,
+                                borderDash: [6, 6],
+                                label: {
+                                    display: true,
+                                    content: 'Budget: $' + WEEKLY_BUDGET,
+                                    position: 'end',
+                                    backgroundColor: 'rgba(231, 76, 60, 0.8)',
+                                    color: 'white',
+                                    font: { size: 10, weight: 'bold' }
+                                }
                             }
                         }
                     }
@@ -861,7 +876,7 @@ $(document).ready(function() {
                             loadModalTransactions(currentSelectedDate);
                             renderCalendar();
                             updateRemainingBalance();
-                            updateWeeklyChart(); // 수정 시 그래프 실시간 갱신
+                            updateWeeklyChart(); 
                         }
                     });
                 });
@@ -878,7 +893,7 @@ $(document).ready(function() {
                         loadModalTransactions(currentSelectedDate);
                         renderCalendar();
                         updateRemainingBalance();
-                        updateWeeklyChart(); // 삭제 시 그래프 실시간 갱신
+                        updateWeeklyChart(); 
                     }
                 });
             });
@@ -900,7 +915,6 @@ $(document).ready(function() {
     $("#nextMonth").on("click", function() { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
     $(window).resize(renderCalendar);
 
-    // Post function
     $("#expenseForm").on("submit", function(e) {
         e.preventDefault();
 
@@ -935,7 +949,7 @@ $(document).ready(function() {
                 transactionDatabase[dateVal].push(newTransaction);
                 renderCalendar();
                 updateRemainingBalance();
-                updateWeeklyChart(); // 내역 추가 시 그래프 실시간 갱신
+                updateWeeklyChart(); 
 
                 $("#expenseAmount").val("");
                 $("#expenseCategory").val("");
@@ -946,7 +960,6 @@ $(document).ready(function() {
 
     loadInitialData();
 });
-
 </script>
 </body>
 </html>

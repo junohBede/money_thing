@@ -20,7 +20,6 @@
             font-family: 'Helvetica', Arial, sans-serif;
             background-color: #f5f6fa;
             color: #2f3640;
-            /* 데스크톱은 꽉 차게, 모바일은 컨텐츠만큼 늘어나도록 유연하게 설정 */
             height: 100%;
             width: 100%;
         }
@@ -29,6 +28,7 @@
             display: flex;
             flex-direction: column;
             width: 100%;
+            height: 100%;
         }
 
         /* 데스크톱(태블릿 이상) 뷰 스타일 */
@@ -50,6 +50,12 @@
                 flex-direction: column;
                 overflow: hidden;
             }
+            .calendar-area {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
             .calendar-body {
                 flex: 1;
                 position: relative;
@@ -58,9 +64,16 @@
                 position: absolute;
                 left: 0; top: 0; bottom: 0; right: 0;
             }
+            ul#calendarGrid {
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                grid-template-rows: 40px repeat(6, 1fr); /* 요일 행 고정 후 남은 공간 균등 분할 */
+                height: 100%;
+                width: 100%;
+            }
             li {
-                /* 데스크톱에서는 6줄이 꽉 차도록 자바스크립트로 동적 계산 */
-                height: auto; 
+                width: 100% !important;
+                height: 100% !important;
             }
         }
 
@@ -68,7 +81,7 @@
         @media (max-width: 767px) {
             html, body {
                 height: auto;
-                overflow-y: auto; /* 페이지 전체 스크롤 허용 */
+                overflow-y: auto;
             }
             .container {
                 height: auto;
@@ -78,20 +91,35 @@
             }
             .content-area {
                 width: 100%;
-                display: block; /* 높이 제한 해제 */
+                display: block;
             }
             .calendar-body {
-                overflow-x: auto; /* 좌우 스크롤로 격자 깨짐 보호 */
-                -webkit-overflow-scrolling: touch;
-                padding-bottom: 15px;
+                width: 100%;
+                overflow-x: hidden; /* 가로 튀어나옴 절대 방지 */
             }
             #fullDiv {
-                position: relative; /* 높이 축소 현상 방지 */
-                min-width: 700px; /* 격자가 너무 좁아지지 않게 최소 너비 고정 */
+                position: relative;
+                width: 100%;
+            }
+            ul#calendarGrid {
+                display: grid;
+                grid-template-columns: repeat(7, 1fr); /* 화면 내에 7칸이 딱 맞게 안착 */
+                width: 100%;
             }
             li {
-                height: 90px !important; /* 모바일 날짜 칸 높이 고정 */
-                line-height: 90px !important;
+                width: 100% !important;
+                height: 75px !important; /* 모바일에서 한 화면에 잘 보이도록 높이 조절 */
+            }
+            .expense-display {
+                font-size: 9px !important; /* 좁은 모바일 화면 대응 */
+                bottom: 4px !important;
+                left: 4px !important;
+                right: 4px !important;
+            }
+            .date-num {
+                top: 4px !important;
+                left: 4px !important;
+                font-size: 12px !important;
             }
         }
 
@@ -145,8 +173,6 @@
         /* Calendar Area Container */
         .calendar-area {
             background-color: #ffffff;
-            display: flex;
-            flex-direction: column;
         }
 
         .calendar-header {
@@ -181,16 +207,10 @@
         ul {
             margin: 0;
             padding: 0;
-            width: 100%;
-            display: flow-root; /* float 자식 인식을 위한 설정 */
+            list-style-type: none;
         }
 
         li {
-            float: left;
-            display: block;
-            width: 14.2857%;
-            text-align: center;
-            list-style-type: none;
             position: relative;
             border: 1px solid #f1f2f6;
         }
@@ -199,8 +219,9 @@
             font-weight: 900;
             color: #e67e22;
             background-color: #fff5e6;
-            height: 40px !important;
-            line-height: 40px !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .not-current-month {
@@ -241,6 +262,9 @@
             text-align: right;
             line-height: 1.3;
             word-break: break-all; 
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
         }
 
         .income-text { color: #2ecc71; }
@@ -614,8 +638,6 @@ $(document).ready(function() {
             var targetYear = month === 11 ? year + 1 : year;
             appendDayCell($grid, day, formatDateString(targetYear, targetMonth, day), "not-current-month");
         }
-
-        setCalendarHeight();
     }
 
     function updateRemainingBalance() {
@@ -656,7 +678,6 @@ $(document).ready(function() {
         var firstDateLabel = "";
         var lastDateLabel = "";
         
-        // 최근 7일간의 날짜 키 생성 및 범위 라벨 추출
         for (var i = 6; i >= 0; i--) {
             var d = new Date();
             d.setDate(d.getDate() - i);
@@ -672,13 +693,10 @@ $(document).ready(function() {
             if (i === 0) lastDateLabel = month + '/' + day;
         }
 
-        // X축에는 일주일 단 하나의 범위 라벨만 표시
         var labels = [firstDateLabel + ' - ' + lastDateLabel];
 
-        // 일주일간 등장한 지출 카테고리 수집
         var categories = new Set();
         Object.keys(transactionDatabase).forEach(function(dateKey) {
-            // 최근 7일 범위에 포함되는 날짜만 대상으로 함
             if (dateKeys.includes(dateKey)) {
                 transactionDatabase[dateKey].forEach(function(item) {
                     if (item.type === 'expense') {
@@ -688,7 +706,6 @@ $(document).ready(function() {
             }
         });
 
-        // 각 카테고리별로 7일간의 금액을 모두 더해 단 하나의 데이터 포인트 생성
         var datasets = Array.from(categories).map(function(cat) {
             var totalSum = 0;
             
@@ -704,9 +721,9 @@ $(document).ready(function() {
 
             return {
                 label: cat,
-                data: [totalSum], // 하나의 막대에 대응하는 단일 배열 데이터
+                data: [totalSum], 
                 backgroundColor: categoryColors[cat] || categoryColors['other'],
-                barPercentage: 0.3 // 막대가 너무 뚱뚱해지지 않도록 두께 조절
+                barPercentage: 0.3 
             };
         });
 
@@ -800,16 +817,6 @@ $(document).ready(function() {
         var mm = (m + 1) < 10 ? "0" + (m + 1) : (m + 1);
         var dd = d < 10 ? "0" + d : d;
         return y + "-" + mm + "-" + dd;
-    }
-
-    function setCalendarHeight() {
-        // 모바일 화면일 때는 자바스크립트로 높이를 강제 계산하지 않음
-        if ($(window).width() < 768) {
-            return;
-        }
-        var availableHeight = $(".calendar-body").height();
-        var height = (availableHeight / 6);
-        $(".calendar-body li:not(.day-title)").css({ "height": height + "px", "line-height": height + "px" });
     }
 
     function loadModalTransactions(dateStr) {
@@ -947,7 +954,6 @@ $(document).ready(function() {
 
     $("#prevMonth").on("click", function() { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
     $("#nextMonth").on("click", function() { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
-    $(window).resize(renderCalendar);
 
     $("#expenseForm").on("submit", function(e) {
         e.preventDefault();

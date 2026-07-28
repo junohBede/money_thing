@@ -31,7 +31,7 @@
             height: 100%;
         }
 
-        /* 데스크톱(태블릿 이상) 뷰 스타일 */
+        /* Desktop view style */
         @media (min-width: 768px) {
             .container {
                 flex-direction: row;
@@ -67,7 +67,7 @@
             ul#calendarGrid {
                 display: grid;
                 grid-template-columns: repeat(7, 1fr);
-                grid-template-rows: 40px repeat(6, 1fr); /* 요일 행 고정 후 남은 공간 균등 분할 */
+                grid-template-rows: 40px repeat(6, 1fr); /* For calendar grid's design */
                 height: 100%;
                 width: 100%;
             }
@@ -77,7 +77,7 @@
             }
         }
 
-        /* 모바일 뷰 스타일 개편 */
+        /* mobile view style */
         @media (max-width: 767px) {
             html, body {
                 height: auto;
@@ -95,7 +95,7 @@
             }
             .calendar-body {
                 width: 100%;
-                overflow-x: hidden; /* 가로 튀어나옴 절대 방지 */
+                overflow-x: hidden; 
             }
             #fullDiv {
                 position: relative;
@@ -103,15 +103,15 @@
             }
             ul#calendarGrid {
                 display: grid;
-                grid-template-columns: repeat(7, 1fr); /* 화면 내에 7칸이 딱 맞게 안착 */
+                grid-template-columns: repeat(7, 1fr); 
                 width: 100%;
             }
             li {
                 width: 100% !important;
-                height: 75px !important; /* 모바일에서 한 화면에 잘 보이도록 높이 조절 */
+                height: 75px !important; 
             }
             .expense-display {
-                font-size: 9px !important; /* 좁은 모바일 화면 대응 */
+                font-size: 9px !important; 
                 bottom: 4px !important;
                 left: 4px !important;
                 right: 4px !important;
@@ -561,7 +561,7 @@ $(document).ready(function() {
     var currentSelectedDate = ""; 
     var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     
-    // 일주일 예산 설정 변수
+    // Weekly budget variable
     var WEEKLY_BUDGET = 200.00; 
 
     var expenseChartInstance = null;

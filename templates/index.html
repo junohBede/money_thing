@@ -652,9 +652,11 @@ $(document).ready(function() {
         if (!canvas) return; 
         var ctx = canvas.getContext('2d');
         
-        var labels = [];
         var dateKeys = [];
+        var firstDateLabel = "";
+        var lastDateLabel = "";
         
+        // 최근 7일간의 날짜 키 생성 및 범위 라벨 추출
         for (var i = 6; i >= 0; i--) {
             var d = new Date();
             d.setDate(d.getDate() - i);
@@ -664,38 +666,47 @@ $(document).ready(function() {
             var year = d.getFullYear();
             
             var formattedKey = formatDateString(year, d.getMonth(), day); 
-            
-            labels.push(month + '/' + day); 
             dateKeys.push(formattedKey);
+
+            if (i === 6) firstDateLabel = month + '/' + day;
+            if (i === 0) lastDateLabel = month + '/' + day;
         }
 
+        // X축에는 일주일 단 하나의 범위 라벨만 표시
+        var labels = [firstDateLabel + ' - ' + lastDateLabel];
+
+        // 일주일간 등장한 지출 카테고리 수집
         var categories = new Set();
         Object.keys(transactionDatabase).forEach(function(dateKey) {
-            transactionDatabase[dateKey].forEach(function(item) {
-                if (item.type === 'expense') {
-                    categories.add(item.category || 'other');
-                }
-            });
+            // 최근 7일 범위에 포함되는 날짜만 대상으로 함
+            if (dateKeys.includes(dateKey)) {
+                transactionDatabase[dateKey].forEach(function(item) {
+                    if (item.type === 'expense') {
+                        categories.add(item.category || 'other');
+                    }
+                });
+            }
         });
 
+        // 각 카테고리별로 7일간의 금액을 모두 더해 단 하나의 데이터 포인트 생성
         var datasets = Array.from(categories).map(function(cat) {
-            var dataPoints = dateKeys.map(function(dateKey) {
-                var sum = 0;
+            var totalSum = 0;
+            
+            dateKeys.forEach(function(dateKey) {
                 if (transactionDatabase[dateKey]) {
                     transactionDatabase[dateKey].forEach(function(item) {
                         if (item.type === 'expense' && (item.category || 'other') === cat) {
-                            sum += item.amount;
+                            totalSum += item.amount;
                         }
                     });
                 }
-                return sum;
             });
 
             return {
                 label: cat,
-                data: dataPoints,
+                data: [totalSum], // 하나의 막대에 대응하는 단일 배열 데이터
                 backgroundColor: categoryColors[cat] || categoryColors['other'],
-                barPercentage: 0.6
+                barPercentage: 0.3 // 막대가 너무 뚱뚱해지지 않도록 두께 조절
             };
         });
 

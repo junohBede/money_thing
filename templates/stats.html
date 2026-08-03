@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monthly Expense Statistics</title>
+    <title>2026 Yearly Expense Statistics</title>
     <!-- jQuery & Chart.js 로드 -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -16,36 +16,23 @@
             color: #2f3640;
         }
         .stats-container {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 0 auto;
-            background: #ffffff;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
         .header-area {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 2px solid #f1f2f6;
-            padding-bottom: 20px;
+            background: #ffffff;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
             margin-bottom: 30px;
         }
         .header-area h2 {
             margin: 0;
             color: #1abc9c;
         }
-        .nav-btn {
-            background-color: #1abc9c;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 14px;
-        }
-        .nav-btn:hover { background-color: #16a085; }
         .back-link {
             text-decoration: none;
             color: #7f8c8d;
@@ -53,31 +40,42 @@
             font-size: 14px;
         }
         .back-link:hover { color: #2f3640; }
+
+        /* 월별 카드 스타일 */
+        .month-card {
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+        }
+        .month-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #2f3640;
+            margin-top: 0;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f1f2f6;
+            padding-bottom: 10px;
+        }
         
         .content-layout {
             display: flex;
             flex-direction: column;
-            gap: 40px;
+            gap: 30px;
         }
         @media (min-width: 768px) {
             .content-layout {
                 flex-direction: row;
             }
             .chart-box { flex: 1.5; }
-            .list-box { flex: 1; border-left: 1px solid #edf2f7; padding-left: 30px; }
+            .list-box { flex: 1; border-left: 1px solid #edf2f7; padding-left: 25px; }
         }
         
         .chart-wrapper {
             position: relative;
-            height: 350px;
+            height: 280px;
             width: 100%;
-        }
-        .stats-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-top: 0;
-            margin-bottom: 20px;
-            color: #2f3640;
         }
         .monthly-cat-table {
             width: 100%;
@@ -85,8 +83,8 @@
         }
         .monthly-cat-table th, .monthly-cat-table td {
             text-align: left;
-            padding: 12px 8px;
-            font-size: 15px;
+            padding: 10px 6px;
+            font-size: 14px;
             border-bottom: 1px solid #edf2f7;
         }
         .monthly-cat-table th {
@@ -105,46 +103,20 @@
 <div class="stats-container">
     <div class="header-area">
         <a href="/" class="back-link">&larr; Back to Calendar</a>
-        <div>
-            <button class="nav-btn" id="prevMonth">&lt; Prev</button>
-            <span id="monthYearDisplay" style="font-size: 20px; font-weight: bold; margin: 0 15px; vertical-align: middle;">May 2026</span>
-            <button class="nav-btn" id="nextMonth">Next &gt;</button>
-        </div>
+        <h2>📅 2026 Yearly Overview</h2>
+        <div style="width: 110px;"></div> <!-- 밸런스 맞춤용 여백 -->
     </div>
 
-    <div class="content-layout">
-        <!-- 막대그래프 영역 -->
-        <div class="chart-box">
-            <h4 class="stats-title">📊 Monthly Expenses by Category</h4>
-            <div class="chart-wrapper">
-                <canvas id="monthlyCategoryChart"></canvas>
-            </div>
-        </div>
-
-        <!-- 숫자 리스트 영역 -->
-        <div class="list-box">
-            <h4 class="stats-title">🔢 Breakdown Summary</h4>
-            <table class="monthly-cat-table">
-                <thead>
-                    <tr>
-                        <th>Category</th>
-                        <th style="text-align: right;">Total Amount</th>
-                    </tr>
-                </thead>
-                <tbody id="monthlyCatListBody">
-                    <!-- JS로 동적 생성 -->
-                </tbody>
-            </table>
-        </div>
-    </div>
+    <!-- 1월부터 12월까지 카드가 동적으로 생성될 공간 -->
+    <div id="yearlyCardsContainer"></div>
 </div>
 
 <script>
 $(document).ready(function() {
     var transactionDatabase = {};
-    var currentDate = new Date();
+    // 고정된 올해 연도 (2026년 기준)
+    var currentYear = 2026; 
     var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    var monthlyChartInstance = null;
 
     var categoryColors = {
         'book': '#a29bfe', 'culture': '#ffeaa7', 'eat out': '#ff7675', 'fee': '#fab1a0',
@@ -165,99 +137,131 @@ $(document).ready(function() {
                     }
                     transactionDatabase[item.date].push(item);
                 });
-                updateMonthlyStats();
+                renderYearlyStats();
             }
         });
     }
 
-    function updateMonthlyStats() {
-        var year = currentDate.getFullYear();
-        var month = currentDate.getMonth();
-        $("#monthYearDisplay").text(monthNames[month] + " " + year);
+    function renderYearlyStats() {
+        var $container = $("#yearlyCardsContainer").empty();
 
-        var prefix = year + "-" + ((month + 1) < 10 ? "0" + (month + 1) : (month + 1));
-        var categoryTotals = {};
+        // 1월(0)부터 12월(11)까지 반복하며 카드 생성
+        for (var m = 0; m < 12; m++) {
+            var monthNum = m + 1;
+            var prefix = currentYear + "-" + (monthNum < 10 ? "0" + monthNum : monthNum);
+            
+            var categoryTotals = {};
+            var hasData = false;
 
-        // 월별 지출 데이터 필터링 및 합산
-        Object.keys(transactionDatabase).forEach(function(dateKey) {
-            if (dateKey.indexOf(prefix) === 0) {
-                transactionDatabase[dateKey].forEach(function(item) {
-                    if (item.type === 'expense') {
-                        var cat = item.category || 'etc.';
-                        categoryTotals[cat] = (categoryTotals[cat] || 0) + item.amount;
-                    }
+            // 해당 월의 데이터 필터링 및 합산
+            Object.keys(transactionDatabase).forEach(function(dateKey) {
+                if (dateKey.indexOf(prefix) === 0) {
+                    transactionDatabase[dateKey].forEach(function(item) {
+                        if (item.type === 'expense') {
+                            var cat = item.category || 'etc.';
+                            categoryTotals[cat] = (categoryTotals[cat] || 0) + item.amount;
+                            hasData = true;
+                        }
+                    });
+                }
+            });
+
+            // 월별 카드 UI 뼈대 만들기
+            var cardId = "month-card-" + monthNum;
+            var chartId = "chart-" + monthNum;
+            var listId = "list-" + monthNum;
+
+            var cardHtml = `
+                <div class="month-card" id="${cardId}">
+                    <div class="month-title">${monthNames[m]} ${currentYear}</div>
+                    <div class="content-layout">
+                        <!-- 그래프 -->
+                        <div class="chart-box">
+                            <div class="chart-wrapper">
+                                <canvas id="${chartId}"></canvas>
+                            </div>
+                        </div>
+                        <!-- 리스트 -->
+                        <div class="list-box">
+                            <table class="monthly-cat-table">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th style="text-align: right;">Total Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="${listId}">
+                                    <!-- 데이터 유무에 따라 동적 삽입 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            $container.append(cardHtml);
+
+            var $tableBody = $("#" + listId);
+            var labels = [];
+            var dataValues = [];
+            var bgColors = [];
+
+            if (!hasData) {
+                $tableBody.append('<tr><td colspan="2" style="text-align:center; color:#7f8c8d; font-style:italic; padding:30px 0;">No expenses tracked.</td></tr>');
+            } else {
+                // 금액이 높은 순으로 정렬
+                var sortedCategories = Object.keys(categoryTotals).sort(function(a,b) {
+                    return categoryTotals[b] - categoryTotals[a];
+                });
+
+                sortedCategories.forEach(function(cat) {
+                    var amt = categoryTotals[cat];
+                    labels.push(cat);
+                    dataValues.push(amt);
+                    bgColors.push(categoryColors[cat] || '#b2bec3');
+
+                    var rowHtml = `<tr>
+                        <td><span style="display:inline-block; width:12px; height:12px; background-color:${categoryColors[cat]||'#b2bec3'}; margin-right:8px; border-radius:2px; vertical-align:middle;"></span>${cat}</td>
+                        <td class="amt-col">$${amt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    </tr>`;
+                    $tableBody.append(rowHtml);
                 });
             }
-        });
 
-        // 금액이 높은 순으로 카테고리 정렬
-        var sortedCategories = Object.keys(categoryTotals).sort(function(a,b) {
-            return categoryTotals[b] - categoryTotals[a];
-        });
-
-        var labels = [];
-        var dataValues = [];
-        var bgColors = [];
-        var $tableBody = $("#monthlyCatListBody").empty();
-
-        if (sortedCategories.length === 0) {
-            $tableBody.append('<tr><td colspan="2" style="text-align:center; color:#7f8c8d; font-style:italic; padding:40px 0;">No expenses tracked this month.</td></tr>');
-        } else {
-            sortedCategories.forEach(function(cat) {
-                var amt = categoryTotals[cat];
-                labels.push(cat);
-                dataValues.push(amt);
-                bgColors.push(categoryColors[cat] || '#b2bec3');
-
-                var rowHtml = `<tr>
-                    <td><span style="display:inline-block; width:12px; height:12px; background-color:${categoryColors[cat]||'#b2bec3'}; margin-right:8px; border-radius:2px; vertical-align:middle;"></span>${cat}</td>
-                    <td class="amt-col">$${amt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                </tr>`;
-                $tableBody.append(rowHtml);
-            });
-        }
-
-        // Chart.js 막대그래프 렌더링
-        var ctx = document.getElementById('monthlyCategoryChart').getContext('2d');
-        if (monthlyChartInstance !== null) {
-            monthlyChartInstance.destroy();
-        }
-
-        monthlyChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: 'Total Expenses ($)',
-                    data: dataValues,
-                    backgroundColor: bgColors,
-                    borderRadius: 5
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { grid: { display: false } },
-                    y: {
-                        beginAtZero: true,
-                        ticks: { callback: function(value) { return '$' + value; } }
-                    }
+            // 개별 Chart.js 막대그래프 생성
+            var ctx = document.getElementById(chartId).getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Expenses ($)',
+                        data: dataValues,
+                        backgroundColor: bgColors,
+                        borderRadius: 4
+                    }]
                 },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) { return context.label + ': $' + context.raw.toFixed(2); }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { callback: function(value) { return '$' + value; } }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) { return context.label + ': $' + context.raw.toFixed(2); }
+                            }
                         }
                     }
                 }
-            }
-        });
+            });
+        }
     }
-
-    $("#prevMonth").on("click", function() { currentDate.setMonth(currentDate.getMonth() - 1); updateMonthlyStats(); });
-    $("#nextMonth").on("click", function() { currentDate.setMonth(currentDate.getMonth() + 1); updateMonthlyStats(); });
 
     loadInitialData();
 });

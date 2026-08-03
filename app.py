@@ -78,6 +78,12 @@ def delete_transaction(tx_id):
     conn.close()
     return jsonify({"status": "success"})
 
+
+# 1-2. Stat page
+@app.route('/stats')
+def stats():
+    return render_template('stats.html')
+
 if __name__ == '__main__':
     init_db()
     # 0.0.0.0 for Tailscale

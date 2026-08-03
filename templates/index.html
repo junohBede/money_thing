@@ -562,7 +562,7 @@ $(document).ready(function() {
     var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     
     // Weekly budget variable
-    var WEEKLY_BUDGET = 200.00; 
+    var WEEKLY_BUDGET = 400.00; 
 
     var expenseChartInstance = null;
 
@@ -678,7 +678,7 @@ $(document).ready(function() {
         var firstDateLabel = "";
         var lastDateLabel = "";
         
-        for (var i = 6; i >= 0; i--) {
+        for (var i = 13; i >= 0; i--) {
             var d = new Date();
             d.setDate(d.getDate() - i);
             
@@ -689,7 +689,7 @@ $(document).ready(function() {
             var formattedKey = formatDateString(year, d.getMonth(), day); 
             dateKeys.push(formattedKey);
 
-            if (i === 6) firstDateLabel = month + '/' + day;
+            if (i === 13) firstDateLabel = month + '/' + day;
             if (i === 0) lastDateLabel = month + '/' + day;
         }
 

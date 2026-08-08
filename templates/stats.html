@@ -74,9 +74,30 @@
         
         .chart-wrapper {
             position: relative;
-            height: 280px;
+            height: 250px;
             width: 100%;
         }
+        
+        /* 월별 총액 누적 가로막대 영역 스타일 */
+        .total-bar-wrapper {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px dashed #edf2f7;
+        }
+        .total-bar-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #2f3640;
+        }
+        .total-bar-canvas-container {
+            position: relative;
+            height: 50px;
+            width: 100%;
+        }
+
         .monthly-cat-table {
             width: 100%;
             border-collapse: collapse;
@@ -152,6 +173,7 @@ $(document).ready(function() {
             
             var categoryTotals = {};
             var hasData = false;
+            var grandTotal = 0;
 
             // 해당 월의 데이터 필터링 및 합산
             Object.keys(transactionDatabase).forEach(function(dateKey) {
@@ -160,6 +182,7 @@ $(document).ready(function() {
                         if (item.type === 'expense') {
                             var cat = item.category || 'etc.';
                             categoryTotals[cat] = (categoryTotals[cat] || 0) + item.amount;
+                            grandTotal += item.amount;
                             hasData = true;
                         }
                     });
@@ -169,19 +192,31 @@ $(document).ready(function() {
             // 월별 카드 UI 뼈대 만들기
             var cardId = "month-card-" + monthNum;
             var chartId = "chart-" + monthNum;
+            var horizontalChartId = "h-chart-" + monthNum;
+            var totalAmtId = "total-amt-" + monthNum;
             var listId = "list-" + monthNum;
 
             var cardHtml = `
                 <div class="month-card" id="${cardId}">
                     <div class="month-title">${monthNames[m]} ${currentYear}</div>
                     <div class="content-layout">
-                        <!-- 그래프 -->
+                        <!-- 그래프 영역 -->
                         <div class="chart-box">
                             <div class="chart-wrapper">
                                 <canvas id="${chartId}"></canvas>
                             </div>
+                            <!-- 월별 총액 누적 가로막대 영역 -->
+                            <div class="total-bar-wrapper">
+                                <div class="total-bar-info">
+                                    <span>Total Expense</span>
+                                    <span id="${totalAmtId}">$0.00</span>
+                                </div>
+                                <div class="total-bar-canvas-container">
+                                    <canvas id="${horizontalChartId}"></canvas>
+                                </div>
+                            </div>
                         </div>
-                        <!-- 리스트 -->
+                        <!-- 리스트 영역 -->
                         <div class="list-box">
                             <table class="monthly-cat-table">
                                 <thead>
@@ -207,6 +242,7 @@ $(document).ready(function() {
 
             if (!hasData) {
                 $tableBody.append('<tr><td colspan="2" style="text-align:center; color:#7f8c8d; font-style:italic; padding:30px 0;">No expenses tracked.</td></tr>');
+                $("#" + totalAmtId).text("$0.00");
             } else {
                 // 금액이 높은 순으로 정렬
                 var sortedCategories = Object.keys(categoryTotals).sort(function(a,b) {
@@ -225,9 +261,12 @@ $(document).ready(function() {
                     </tr>`;
                     $tableBody.append(rowHtml);
                 });
+
+                // 총액 텍스트 업데이트
+                $("#" + totalAmtId).text('$' + grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
             }
 
-            // 개별 Chart.js 막대그래프 생성
+            // 1. 개별 세로 막대그래프 생성
             var ctx = document.getElementById(chartId).getContext('2d');
             new Chart(ctx, {
                 type: 'bar',
@@ -255,6 +294,65 @@ $(document).ready(function() {
                         tooltip: {
                             callbacks: {
                                 label: function(context) { return context.label + ': $' + context.raw.toFixed(2); }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 2. 카테고리별 비중을 보여주는 누적 가로막대그래프 생성
+            var hCtx = document.getElementById(horizontalChartId).getContext('2d');
+            
+            // 누적 가로막대를 위해 데이터셋 구성 (각 카테고리를 하나의 데이터셋으로 분리하여 가로로 누적)
+            var horizontalDatasets = [];
+            if (hasData) {
+                sortedCategories.forEach(function(cat) {
+                    var amt = categoryTotals[cat];
+                    horizontalDatasets.push({
+                        label: cat,
+                        data: [amt],
+                        backgroundColor: categoryColors[cat] || '#b2bec3',
+                        barThickness: 16
+                    });
+                });
+            } else {
+                horizontalDatasets.push({
+                    label: 'No Data',
+                    data: [0],
+                    backgroundColor: '#dfe6e9',
+                    barThickness: 16
+                });
+            }
+
+            new Chart(hCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Total'],
+                    datasets: horizontalDatasets
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true,
+                            display: false,
+                            beginAtZero: true
+                        },
+                        y: {
+                            stacked: true,
+                            display: false
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (!hasData) return 'No expenses';
+                                    return context.dataset.label + ': $' + context.raw.toFixed(2);
+                                }
                             }
                         }
                     }

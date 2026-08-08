@@ -68,36 +68,18 @@
             .content-layout {
                 flex-direction: row;
             }
-            .chart-box { flex: 1.5; }
+            .chart-box { flex: 1.2; }
             .list-box { flex: 1; border-left: 1px solid #edf2f7; padding-left: 25px; }
         }
         
+        /* 가로 누적 막대그래프에 맞게 높이 축소 */
         .chart-wrapper {
             position: relative;
-            height: 250px;
+            height: 120px; 
             width: 100%;
-        }
-        
-        /* 월별 총액 누적 가로막대 영역 스타일 */
-        .total-bar-wrapper {
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px dashed #edf2f7;
-        }
-        .total-bar-info {
             display: flex;
-            justify-content: space-between;
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 8px;
-            color: #2f3640;
+            align-items: center;
         }
-        .total-bar-canvas-container {
-            position: relative;
-            height: 50px;
-            width: 100%;
-        }
-
         .monthly-cat-table {
             width: 100%;
             border-collapse: collapse;
@@ -117,6 +99,35 @@
             font-weight: bold;
             color: #e74c3c;
         }
+
+        /* 추가된 스타일: 클릭 가능한 리스트 요소 및 상세내역 컨테이너 */
+        .cat-row {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .cat-row:hover {
+            background-color: #f8f9fa;
+        }
+        .cat-row:hover td {
+            color: #1abc9c;
+        }
+        .detail-container {
+            background-color: #f8f9fa;
+            border: 1px solid #edf2f7;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 25px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .detail-close {
+            float: right;
+            cursor: pointer;
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+        .detail-close:hover {
+            color: #e74c3c;
+        }
     </style>
 </head>
 <body>
@@ -125,7 +136,7 @@
     <div class="header-area">
         <a href="/" class="back-link">&larr; Back to Calendar</a>
         <h2>📅 2026 Yearly Overview</h2>
-        <div style="width: 110px;"></div> <!-- 밸런스 맞춤용 여백 -->
+        <div style="width: 110px;"></div>
     </div>
 
     <!-- 1월부터 12월까지 카드가 동적으로 생성될 공간 -->
@@ -135,7 +146,6 @@
 <script>
 $(document).ready(function() {
     var transactionDatabase = {};
-    // 고정된 올해 연도 (2026년 기준)
     var currentYear = 2026; 
     var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -153,212 +163,249 @@ $(document).ready(function() {
             success: function(data) {
                 transactionDatabase = {};
                 data.forEach(function(item) {
-                    if (!transactionDatabase[item.date]) {
-                        transactionDatabase[item.date] = [];
+                    // 데이터 생성 (테스트용 날짜가 없는 경우 처리)
+                    var date = item.date || ""; 
+                    if (!transactionDatabase[date]) {
+                        transactionDatabase[date] = [];
                     }
-                    transactionDatabase[item.date].push(item);
+                    transactionDatabase[date].push(item);
                 });
+                renderYearlyStats();
+            },
+            error: function() {
+                // 테스트를 위한 가상 데이터 (API 통신 실패시 작동)
+                generateDummyData();
                 renderYearlyStats();
             }
         });
     }
 
+    // (참고) 서버 환경이 아닐때 UI 확인을 위해 임시로 데이터를 만듭니다.
+    function generateDummyData() {
+        transactionDatabase = {
+            '2026-01-05': [{type: 'expense', category: 'eat out', amount: 45.50, description: 'Lunch'}],
+            '2026-01-12': [{type: 'expense', category: 'grocery', amount: 120.00, description: 'Walmart'}],
+            '2026-01-20': [{type: 'expense', category: 'eat out', amount: 30.00, description: 'Dinner'}],
+            '2026-02-15': [{type: 'expense', category: 'rent', amount: 1200.00, description: 'House Rent'}]
+        };
+    }
+
     function renderYearlyStats() {
         var $container = $("#yearlyCardsContainer").empty();
 
-        // 1월(0)부터 12월(11)까지 반복하며 카드 생성
         for (var m = 0; m < 12; m++) {
             var monthNum = m + 1;
             var prefix = currentYear + "-" + (monthNum < 10 ? "0" + monthNum : monthNum);
             
             var categoryTotals = {};
+            var monthlyTotal = 0; // 월 총액 변수 추가
             var hasData = false;
-            var grandTotal = 0;
 
-            // 해당 월의 데이터 필터링 및 합산
             Object.keys(transactionDatabase).forEach(function(dateKey) {
                 if (dateKey.indexOf(prefix) === 0) {
                     transactionDatabase[dateKey].forEach(function(item) {
                         if (item.type === 'expense') {
                             var cat = item.category || 'etc.';
                             categoryTotals[cat] = (categoryTotals[cat] || 0) + item.amount;
-                            grandTotal += item.amount;
+                            monthlyTotal += item.amount;
                             hasData = true;
                         }
                     });
                 }
             });
 
-            // 월별 카드 UI 뼈대 만들기
             var cardId = "month-card-" + monthNum;
             var chartId = "chart-" + monthNum;
-            var horizontalChartId = "h-chart-" + monthNum;
-            var totalAmtId = "total-amt-" + monthNum;
             var listId = "list-" + monthNum;
+            var detailId = "detail-" + monthNum;
 
             var cardHtml = `
-                <div class="month-card" id="${cardId}">
+                <div class="month-card" id="${cardId}" data-month="${prefix}">
                     <div class="month-title">${monthNames[m]} ${currentYear}</div>
                     <div class="content-layout">
-                        <!-- 그래프 영역 -->
+                        <!-- 그래프 -->
                         <div class="chart-box">
                             <div class="chart-wrapper">
                                 <canvas id="${chartId}"></canvas>
                             </div>
-                            <!-- 월별 총액 누적 가로막대 영역 -->
-                            <div class="total-bar-wrapper">
-                                <div class="total-bar-info">
-                                    <span>Total Expense</span>
-                                    <span id="${totalAmtId}">$0.00</span>
-                                </div>
-                                <div class="total-bar-canvas-container">
-                                    <canvas id="${horizontalChartId}"></canvas>
-                                </div>
+                            <div style="text-align:center; margin-top:10px; font-size:12px; color:#a4b0be;">
+                                * Click on a category or chart segment to view details
                             </div>
                         </div>
-                        <!-- 리스트 영역 -->
+                        <!-- 리스트 -->
                         <div class="list-box">
                             <table class="monthly-cat-table">
                                 <thead>
                                     <tr>
-                                        <th>Category</th>
-                                        <th style="text-align: right;">Total Amount</th>
+                                        <th>Category (Legend)</th>
+                                        <th style="text-align: right;">Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody id="${listId}">
-                                    <!-- 데이터 유무에 따라 동적 삽입 -->
                                 </tbody>
+                                <!-- 총액 표시 꼬리말 추가 -->
+                                <tfoot>
+                                    <tr style="border-top: 2px solid #2f3640;">
+                                        <td style="font-weight:bold; color:#2f3640; padding-top:15px; font-size:15px;">Monthly Total</td>
+                                        <td class="amt-col" style="padding-top:15px; font-size:16px;">
+                                            $${monthlyTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                        </td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     </div>
+                    
+                    <!-- 지출 상세내역이 열리는 공간 -->
+                    <div id="${detailId}" class="detail-container" style="display:none;"></div>
                 </div>
             `;
             $container.append(cardHtml);
 
             var $tableBody = $("#" + listId);
-            var labels = [];
-            var dataValues = [];
-            var bgColors = [];
+            var chartDatasets = [];
 
             if (!hasData) {
                 $tableBody.append('<tr><td colspan="2" style="text-align:center; color:#7f8c8d; font-style:italic; padding:30px 0;">No expenses tracked.</td></tr>');
-                $("#" + totalAmtId).text("$0.00");
             } else {
-                // 금액이 높은 순으로 정렬
                 var sortedCategories = Object.keys(categoryTotals).sort(function(a,b) {
                     return categoryTotals[b] - categoryTotals[a];
                 });
 
                 sortedCategories.forEach(function(cat) {
                     var amt = categoryTotals[cat];
-                    labels.push(cat);
-                    dataValues.push(amt);
-                    bgColors.push(categoryColors[cat] || '#b2bec3');
+                    
+                    // 가로 누적 막대그래프를 위한 데이터셋 구성
+                    chartDatasets.push({
+                        label: cat,
+                        data: [amt], // 하나의 막대(x축 값)
+                        backgroundColor: categoryColors[cat] || '#b2bec3',
+                        barThickness: 45,
+                        borderRadius: 4
+                    });
 
-                    var rowHtml = `<tr>
+                    // 리스트 로우(클릭 이벤트를 위해 cat-row 클래스와 data-cat 속성 부여)
+                    var rowHtml = `<tr class="cat-row" data-cat="${cat}">
                         <td><span style="display:inline-block; width:12px; height:12px; background-color:${categoryColors[cat]||'#b2bec3'}; margin-right:8px; border-radius:2px; vertical-align:middle;"></span>${cat}</td>
                         <td class="amt-col">$${amt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                     </tr>`;
                     $tableBody.append(rowHtml);
                 });
-
-                // 총액 텍스트 업데이트
-                $("#" + totalAmtId).text('$' + grandTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
             }
 
-            // 1. 개별 세로 막대그래프 생성
+            // 가로 누적 막대그래프 렌더링
             var ctx = document.getElementById(chartId).getContext('2d');
             new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Expenses ($)',
-                        data: dataValues,
-                        backgroundColor: bgColors,
-                        borderRadius: 4
-                    }]
+                    labels: [''], // Y축 라벨은 하나만 존재하여 한 줄로 합쳐짐
+                    datasets: chartDatasets
                 },
                 options: {
+                    indexAxis: 'y', // 가로 막대 그래프로 설정
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        x: { grid: { display: false } },
-                        y: {
-                            beginAtZero: true,
-                            ticks: { callback: function(value) { return '$' + value; } }
-                        }
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) { return context.label + ': $' + context.raw.toFixed(2); }
-                            }
-                        }
-                    }
-                }
-            });
-
-            // 2. 카테고리별 비중을 보여주는 누적 가로막대그래프 생성
-            var hCtx = document.getElementById(horizontalChartId).getContext('2d');
-            
-            // 누적 가로막대를 위해 데이터셋 구성 (각 카테고리를 하나의 데이터셋으로 분리하여 가로로 누적)
-            var horizontalDatasets = [];
-            if (hasData) {
-                sortedCategories.forEach(function(cat) {
-                    var amt = categoryTotals[cat];
-                    horizontalDatasets.push({
-                        label: cat,
-                        data: [amt],
-                        backgroundColor: categoryColors[cat] || '#b2bec3',
-                        barThickness: 16
-                    });
-                });
-            } else {
-                horizontalDatasets.push({
-                    label: 'No Data',
-                    data: [0],
-                    backgroundColor: '#dfe6e9',
-                    barThickness: 16
-                });
-            }
-
-            new Chart(hCtx, {
-                type: 'bar',
-                data: {
-                    labels: ['Total'],
-                    datasets: horizontalDatasets
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            stacked: true,
-                            display: false,
-                            beginAtZero: true
+                        x: { 
+                            stacked: true, // X축 누적
+                            display: false // X축 숫자 가리기 (더 깔끔한 UI를 위해)
                         },
                         y: {
-                            stacked: true,
-                            display: false
+                            stacked: true, // Y축 누적
+                            display: false // Y축 라벨 가리기
                         }
                     },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: function(context) {
-                                    if (!hasData) return 'No expenses';
-                                    return context.dataset.label + ': $' + context.raw.toFixed(2);
+                                label: function(context) { 
+                                    return context.dataset.label + ': $' + context.raw.toFixed(2); 
                                 }
                             }
+                        }
+                    },
+                    // 차트의 특정 카테고리 클릭 시 상세 내역 표시
+                    onClick: function(event, elements) {
+                        if (elements.length > 0) {
+                            var datasetIndex = elements[0].datasetIndex;
+                            var clickedCat = this.data.datasets[datasetIndex].label;
+                            showCategoryDetails(prefix, clickedCat, detailId);
                         }
                     }
                 }
             });
         }
+    }
+
+    // 범례(테이블 항목) 클릭 이벤트 등록
+    $(document).on('click', '.cat-row', function() {
+        var cat = $(this).data('cat');
+        var $card = $(this).closest('.month-card');
+        var monthPrefix = $card.data('month');
+        var detailId = $card.find('.detail-container').attr('id');
+        
+        showCategoryDetails(monthPrefix, cat, detailId);
+    });
+
+    // 상세 내역을 렌더링하고 애니메이션으로 보여주는 함수
+    function showCategoryDetails(monthPrefix, category, containerId) {
+        var details = [];
+        
+        // 해당 월, 해당 카테고리의 데이터 수집
+        Object.keys(transactionDatabase).forEach(function(dateKey) {
+            if (dateKey.indexOf(monthPrefix) === 0) {
+                transactionDatabase[dateKey].forEach(function(item) {
+                    if (item.type === 'expense' && (item.category || 'etc.') === category) {
+                        details.push({ date: dateKey, data: item });
+                    }
+                });
+            }
+        });
+
+        // 날짜순 정렬
+        details.sort(function(a, b) { return a.date.localeCompare(b.date); });
+
+        var color = categoryColors[category] || '#333';
+        var html = `
+            <div style="margin-bottom: 15px;">
+                <h3 style="margin:0; font-size:18px; color:${color};">
+                    <span style="display:inline-block; width:14px; height:14px; background-color:${color}; margin-right:8px; border-radius:3px;"></span>
+                    ${category} Expenses
+                    <span class="detail-close" onclick="$('#${containerId}').slideUp()">✖</span>
+                </h3>
+            </div>
+            <table style="width:100%; border-collapse: collapse; font-size:14px;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #ddd; text-align:left;">
+                        <th style="padding: 8px 5px; color:#7f8c8d;">Date</th>
+                        <th style="padding: 8px 5px; color:#7f8c8d;">Description</th>
+                        <th style="padding: 8px 5px; text-align:right; color:#7f8c8d;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        if (details.length === 0) {
+            html += `<tr><td colspan="3" style="text-align:center; padding:15px; color:#7f8c8d;">No details found.</td></tr>`;
+        } else {
+            details.forEach(function(entry) {
+                var desc = entry.data.description || entry.data.memo || '-';
+                var amt = entry.data.amount;
+                html += `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 10px 5px; color:#2f3640;">${entry.date}</td>
+                        <td style="padding: 10px 5px; color:#2f3640;">${desc}</td>
+                        <td style="padding: 10px 5px; text-align:right; font-weight:bold; color:#e74c3c;">$${amt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    </tr>
+                `;
+            });
+        }
+        
+        html += `</tbody></table>`;
+
+        // jQuery slideDown을 이용해 부드럽게 펼쳐지도록 표시
+        $("#" + containerId).html(html).slideDown();
     }
 
     loadInitialData();

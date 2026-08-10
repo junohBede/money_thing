@@ -15,4 +15,4 @@ python app.py
 ```
 4. Open the app with the link (your server machine's ip):5000
 5. Enjoy the app! 
-The weekly budget  variable can be set in line 565 of `index.html`.
+The weekly budget variable can be set in line 565 of `index.html`.

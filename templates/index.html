@@ -45,7 +45,7 @@
             }
             .content-area {
                 flex: 1;
-                height: 100%;
+                height: auto;
                 display: flex;
                 flex-direction: column;
                 overflow: hidden;
@@ -512,16 +512,15 @@
             
             <button type="submit" class="btn-submit">Add to Calendar</button>
         </form>
-                <!-- Chart Section -->
-        <div class="chart-container" style="position: relative; margin: 20px; padding: 10px; background: #2d3436; border-radius: 8px;">
-            <h3 style="color: white; margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; font-weight: 500;">📅 expenses</h3>
-            <canvas id="weeklyExpenseChart" style="max-height: 450px; min-height: 200px;"></canvas>
-        </div>
     </div>
 
     <!-- Right Side Content Wrapper (Chart + Calendar) -->
     <div class="content-area">
-
+        <!-- Chart Section -->
+        <div class="chart-container" style="position: relative; margin: 20px; padding: 10px; background: #2d3436; border-radius: 8px;">
+            <h3 style="color: white; margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; font-weight: 500;">📅 expenses</h3>
+            <canvas id="weeklyExpenseChart" style="max-height: 350px; min-height: 200px;"></canvas>
+        </div>
 
         <!-- Calendar Section -->
         <div class="calendar-area">
@@ -786,7 +785,7 @@ $(document).ready(function() {
                                     position: 'end',
                                     backgroundColor: 'rgba(231, 76, 60, 0.8)',
                                     color: 'white',
-                                    font: { size: 9, weight: 'bold' }
+                                    font: { size: 10, weight: 'bold' }
                                 }
                             }
                         }

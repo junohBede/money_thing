@@ -519,7 +519,7 @@
         <!-- Chart Section -->
         <div class="chart-container" style="position: relative; margin: 20px; padding: 15px; background: #2d3436; border-radius: 8px;">
             <h3 style="color: white; margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; font-weight: 500;">📅 expenses</h3>
-            <canvas id="weeklyExpenseChart" style="max-height: 500px; min-height: 200px;"></canvas>
+            <canvas id="weeklyExpenseChart" style="max-height: 300px; min-height: 200px;"></canvas>
         </div>
 
         <!-- Calendar Section -->
@@ -753,7 +753,7 @@ $(document).ready(function() {
                         grid: { color: '#636e72' },
                         ticks: { 
                             color: '#b2bec3',
-                            stepSize: 100,
+                            stepSize: 50,
                             callback: function(value) { return '$' + value; }
                         }
                     }

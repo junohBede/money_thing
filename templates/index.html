@@ -121,7 +121,23 @@
                 left: 4px !important;
                 font-size: 12px !important;
             }
+            .modal-content {
+                width: 95% !important;
+                padding: 20px !important;
+            }
+
+            /* 테이블 레이아웃을 모바일 친화적으로 변경 */
+            .table-header, .transaction-row {
+                grid-template-columns: 80px 1fr 70px 60px !important; /* 비율 조정 */
+                padding: 8px !important;
+                gap: 5px !important;
+                font-size: 11px !important;
+            }
+
+            .row-amount { font-size: 12px !important; }
+            .action-btn { padding: 4px 6px !important; }
         }
+        
 
         /* Form Area Sidebar */
         .form-area {
@@ -319,8 +335,6 @@
             color: #2f3640;
             border-bottom: 2px solid #f1f2f6;
             padding-bottom: 12px;
-            overflow-y: auto;
-            overflow-x: auto;
         }
 
         .list-wrapper {

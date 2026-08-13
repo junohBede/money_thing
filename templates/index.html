@@ -564,7 +564,7 @@ $(document).ready(function() {
     var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     
     // Weekly budget variable
-    var WEEKLY_BUDGET = 400.00; 
+    var WEEKLY_BUDGET = 1400.00; 
 
     var expenseChartInstance = null;
 
@@ -753,6 +753,7 @@ $(document).ready(function() {
                         grid: { color: '#636e72' },
                         ticks: { 
                             color: '#b2bec3',
+                            steoSize: 50,
                             callback: function(value) { return '$' + value; }
                         }
                     }

@@ -66,8 +66,8 @@ def update_transaction(tx_id):
     tx_data = request.json
     conn = get_db_connection()
     conn.execute(
-        'UPDATE transactions SET type=?, category=?, memo=?, amount=? WHERE id=?',
-        (tx_data['type'], tx_data['category'], tx_data['memo'], tx_data['amount'], tx_data['payment_method'], cycle_num, tx_id)
+        'UPDATE transactions SET type=?, category=?, memo=?, amount=?, payment_method=? WHERE id=?',
+        (tx_data['type'], tx_data['category'], tx_data['memo'], tx_data['amount'], tx_data['payment_method'], tx_id)
     )
     conn.commit()
     conn.close()

@@ -944,7 +944,8 @@ $(document).ready(function() {
                         type: autoType,
                         category: selectedCat,
                         memo: $colMemo.find(".edit-mem").val(),
-                        amount: parseFloat($colAmount.find(".edit-amt").val()) || 0
+                        amount: parseFloat($colAmount.find(".edit-amt").val()) || 0,
+                        payment_method: selectedPm
                     };
 
                     $.ajax({

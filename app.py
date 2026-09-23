@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import sqlite3
 import os
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 DB_NAME = "cashbook.db"
@@ -21,7 +22,9 @@ def init_db():
             type TEXT NOT NULL,
             amount REAL NOT NULL,
             category TEXT NOT NULL,
-            memo TEXT
+            memo TEXT,
+            pay_cycle INTEGER
+            payment_method TEXT
         )
     ''')
     conn.commit()
@@ -47,10 +50,11 @@ def get_transactions():
 @app.route('/api/transactions', methods=['POST'])
 def add_transaction():
     tx_data = request.json
+    cycle_num = calculate_pay_cycle(tx_data['date'])
     conn = get_db_connection()
     conn.execute(
         'INSERT INTO transactions (id, date, type, amount, category, memo) VALUES (?, ?, ?, ?, ?, ?)',
-        (tx_data['id'], tx_data['date'], tx_data['type'], tx_data['amount'], tx_data['category'], tx_data['memo'])
+        (tx_data['id'], tx_data['date'], tx_data['type'], tx_data['amount'], tx_data['category'], tx_data['memo'], cycle_num)
     )
     conn.commit()
     conn.close()
@@ -78,11 +82,25 @@ def delete_transaction(tx_id):
     conn.close()
     return jsonify({"status": "success"})
 
+# 6. Biweekly data sorting helper function
+def calculate_pay_cycle(tx_date_str):
+    anchor_date = datetime(2026, 1, 31).date()
+    tx_date = datetime.strptime(tx_date_str, '%Y-%m-%d').date()
+    days_diff = (tx_date - anchor_date).days
+    cycle_number = days_diff // 14
+    return cycle_number
+
 
 # 1-2. Stat page
 @app.route('/stats')
 def stats():
     return render_template('stats.html')
+
+
+# 1-3. Paycheck period stat page
+@app.route('/paycheck_period')
+def paycheck_period():
+    return render_template('paycheck_period.html')
 
 if __name__ == '__main__':
     init_db()

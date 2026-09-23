@@ -53,9 +53,9 @@ def add_transaction():
     cycle_num = calculate_pay_cycle(tx_data['date'])
     conn = get_db_connection()
     conn.execute(
-        'INSERT INTO transactions (id, date, type, amount, category, memo) VALUES (?, ?, ?, ?, ?, ?)',
-        (tx_data['id'], tx_data['date'], tx_data['type'], tx_data['amount'], tx_data['category'], tx_data['memo'], cycle_num)
-    )
+        'INSERT INTO transactions (id, date, type, amount, category, memo, payment_method, pay_cycle) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        (tx_data['id'], tx_data['date'], tx_data['type'], tx_data['amount'], tx_data['category'], tx_data['memo'], tx_data['payment_method'], cycle_num)
+    ) 
     conn.commit()
     conn.close()
     return jsonify({"status": "success"}) 
@@ -67,7 +67,7 @@ def update_transaction(tx_id):
     conn = get_db_connection()
     conn.execute(
         'UPDATE transactions SET type=?, category=?, memo=?, amount=? WHERE id=?',
-        (tx_data['type'], tx_data['category'], tx_data['memo'], tx_data['amount'], tx_id)
+        (tx_data['type'], tx_data['category'], tx_data['memo'], tx_data['amount'], tx_data['payment_method'], cycle_num, tx_id)
     )
     conn.commit()
     conn.close()

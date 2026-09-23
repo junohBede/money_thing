@@ -531,7 +531,7 @@
                     <option value="aero">aero</option>
                     <option value="cashback">cashback</option>
                     <option value="scotia">scotia</option>
-                    <option value="etc">etc</option>
+                    <option value="etc.">etc.</option>
                 </select>
             </div>
             <button type="submit" class="btn-submit">Add to Calendar</button>
@@ -862,7 +862,7 @@ $(document).ready(function() {
 
         $("#modalTableHeader").show();
 
-        var methodTotals = { "card 1": 0, "card 2": 0, "card 3": 0, "other": 0 };
+        var methodTotals = { "aero": 0, "cashback": 0, "scotia": 0, "etc.": 0 };
         items.forEach(function(item) {
             var isInc = item.type === 'income';
             if (!isInc) {
@@ -916,6 +916,12 @@ $(document).ready(function() {
                         <option value="stupid" ${item.category==='stupid'?'selected':''}>stupid</option>
                         <option value="sibal" ${item.category==='sibal'?'selected':''}>sibal</option>
                     </select>
+                    <select class="edit-input edit-pm">
+                        <option value="aero" ${item.payment_method==='aero'?'selected':''}>aero</option>
+                        <option value="cashback" ${item.payment_method==='cashback'?'selected':''}>cashback</option>
+                        <option value="scotia" ${item.payment_method==='scotia'?'selected':''}>scotia</option>
+                        <option value="etc." ${item.payment_method==='etc.'?'selected':''}>etc.</option>
+                    </select>
                 `);
 
                 $colMemo.html(`<input type="text" class="edit-input edit-mem" value="${item.memo}" />`);
@@ -931,6 +937,7 @@ $(document).ready(function() {
 
                 $saveBtn.on("click", function() {
                     var selectedCat = $colInfo.find(".edit-cat").val();
+                    var selectedPm = $colInfo.find(".edit-pm").val();
                     var autoType = (selectedCat === "salary" || selectedCat === "other income") ? "income" : "expense";
 
                     var updatedData = {
@@ -950,6 +957,7 @@ $(document).ready(function() {
                             item.category = updatedData.category;
                             item.memo = updatedData.memo;
                             item.amount = updatedData.amount;
+                            item.payment_method = updatedData.payment_method;
                             loadModalTransactions(currentSelectedDate);
                             renderCalendar();
                             updateRemainingBalance();
@@ -978,7 +986,7 @@ $(document).ready(function() {
         var summaryHtml = "<div style='font-size: 12px; text-transform: uppercase; font-weight: bold; color: #7f8c8d; margin-bottom: 10px;'>Payment Method Summary</div>";
         var hasPayments = false;
         
-        ["card 1", "card 2", "card 3", "other"].forEach(function(pm) {
+        ["aero", "cashback", "scotia", "etc."].forEach(function(pm) {
             if (methodTotals[pm] > 0) {
                 hasPayments = true;
                 summaryHtml += "<div style='display: flex; justify-content: space-between; font-size: 15px; font-weight: bold; margin-bottom: 6px;'>" +

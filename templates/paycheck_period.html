@@ -154,10 +154,8 @@ $(document).ready(function() {
         isRollingMode = !isRollingMode;
         if (isRollingMode) {
             $(this).text("Show Paycheck Cycle").css("background", "#1abc9c");
-            $("#pageMainTitle").text("📅 Last 14 Days");
         } else {
             $(this).text("Show Last 14 Days").css("background", "#2f3640");
-            $("#pageMainTitle").text("📅 Current Paycheck");
         }
         renderStats(); 
     });
@@ -238,6 +236,7 @@ function processAndRenderStats(data, currentCycle, today) {
     cycleEnd.setDate(cycleStart.getDate() + 13);
     var periodTitle = "";
     
+    // 1. 기간 제목(periodTitle) 설정 부분 복구
     if (isRollingMode) {
         var pastDate = new Date(today);
         pastDate.setDate(today.getDate() - 13);
@@ -256,12 +255,16 @@ function processAndRenderStats(data, currentCycle, today) {
         var isValid = false;
 
         if (isRollingMode) {
-            var txDate = new Date(item.date);
-            txDate.setHours(0, 0, 0, 0);
-            var diffFromToday = Math.floor((today - txDate) / (1000 * 60 * 60 * 24));
-            if (diffFromToday >= 0 && diffFromToday <= 13) isValid = true;
+            // 2. 타임존 오류를 방지하는 올바른 필터링 코드는 데이터 순회(forEach) 안에 있어야 합니다.
+            if (item.date) {
+                var parts = item.date.split('-');
+                var txDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                txDate.setHours(0, 0, 0, 0);
+                
+                var diffFromToday = Math.floor((today - txDate) / (1000 * 60 * 60 * 24));
+                if (diffFromToday >= 0 && diffFromToday <= 13) isValid = true;
+            }
         } else {
-            // cycle API 호출 시 이미 현재 주기의 데이터만 수신됨
             isValid = true;
         }
 
@@ -272,7 +275,6 @@ function processAndRenderStats(data, currentCycle, today) {
             hasData = true;
         }
     });
-
     var cardId = "card-current";
     var chartId = "chart-current";
     var listId = "list-current";
@@ -400,8 +402,10 @@ function processAndRenderStats(data, currentCycle, today) {
                 var isValid = false;
 
                 if (isRollingMode) {
-                    var txDate = new Date(item.date);
+                    var parts = item.date.split('-');
+                    var txDate = new Date(parts[0], parts[1] - 1, parts[2]);
                     txDate.setHours(0, 0, 0, 0);
+                    
                     var diffFromToday = Math.floor((today - txDate) / (1000 * 60 * 60 * 24));
                     if (diffFromToday >= 0 && diffFromToday <= 13) isValid = true;
                 } else {

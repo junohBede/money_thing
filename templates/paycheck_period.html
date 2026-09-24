@@ -162,7 +162,7 @@ $(document).ready(function() {
         renderStats(); 
     });
     // 💡 페이첵 기준일 설정
-    var anchorDate = new Date(2026, 8, 6); // 2026년 9월 6일
+    var anchorDate = new Date(2026, 1, 31); 
     anchorDate.setHours(0, 0, 0, 0);
 
     var categoryColors = {
@@ -244,34 +244,28 @@ $(document).ready(function() {
         var categoryTotals = {};
         var periodTotal = 0; 
         var hasData = false;
-
+        
         Object.keys(transactionDatabase).forEach(function(dateKey) {
-            var txDate = new Date(dateKey);
-            txDate.setHours(0, 0, 0, 0);
-            var isValid = false;
+            transactionDatabase[dateKey].forEach(function(item) {
+                var isValid = false;
 
-            // 💡 현재 모드에 따라 데이터를 걸러내는 조건이 다름!
-            if (isRollingMode) {
-                var diffFromToday = Math.floor((today - txDate) / (1000 * 60 * 60 * 24));
-                if (diffFromToday >= 0 && diffFromToday <= 13) {
-                    isValid = true;
+                if (isRollingMode) {
+                    var txDate = new Date(dateKey);
+                    txDate.setHours(0, 0, 0, 0);
+                    var diffFromToday = Math.floor((today - txDate) / (1000 * 60 * 60 * 24));
+                    if (diffFromToday >= 0 && diffFromToday <= 13) isValid = true;
+                } else {
+                    // 💡 DB에서 가져온 item.pay_cycle을 직접 활용합니다!
+                    if (item.pay_cycle === currentCycle) isValid = true;
                 }
-            } else {
-                if (getCycleNumber(dateKey) === currentCycle) {
-                    isValid = true;
-                }
-            }
 
-            if (isValid) {
-                transactionDatabase[dateKey].forEach(function(item) {
-                    if (item.type === 'expense') {
-                        var cat = item.category || 'etc.';
-                        categoryTotals[cat] = (categoryTotals[cat] || 0) + item.amount;
-                        periodTotal += item.amount;
-                        hasData = true;
-                    }
-                });
-            }
+                if (isValid && item.type === 'expense') {
+                    var cat = item.category || 'etc.';
+                    categoryTotals[cat] = (categoryTotals[cat] || 0) + item.amount;
+                    periodTotal += item.amount;
+                    hasData = true;
+                }
+            });
         });
 
         // 3. 단일 카드 렌더링 (12개월 반복문 제거됨)
@@ -393,30 +387,23 @@ $(document).ready(function() {
         today.setHours(0, 0, 0, 0);
         
         Object.keys(transactionDatabase).forEach(function(dateKey) {
-            var txDate = new Date(dateKey);
-            txDate.setHours(0, 0, 0, 0);
-            var isValid = false;
+            transactionDatabase[dateKey].forEach(function(item) {
+                var isValid = false;
 
-            // 💡 현재 모드에 따라 날짜 검사 방식을 분기합니다.
-            if (isRollingMode) {
-                var diffFromToday = Math.floor((today - txDate) / (1000 * 60 * 60 * 24));
-                if (diffFromToday >= 0 && diffFromToday <= 13) {
-                    isValid = true;
+                if (isRollingMode) {
+                    var txDate = new Date(dateKey);
+                    txDate.setHours(0, 0, 0, 0);
+                    var diffFromToday = Math.floor((today - txDate) / (1000 * 60 * 60 * 24));
+                    if (diffFromToday >= 0 && diffFromToday <= 13) isValid = true;
+                } else {
+                    // 💡 여기도 DB의 item.pay_cycle 데이터로 직접 검사합니다.
+                    if (item.pay_cycle === cycleNum) isValid = true;
                 }
-            } else {
-                if (getCycleNumber(dateKey) === cycleNum) {
-                    isValid = true;
-                }
-            }
 
-            // 💡 조건에 맞는 날짜의 지출 항목만 모아줍니다.
-            if (isValid) {
-                transactionDatabase[dateKey].forEach(function(item) {
-                    if (item.type === 'expense' && (item.category || 'etc.') === category) {
-                        details.push({ date: dateKey, data: item });
-                    }
-                });
-            }
+                if (isValid && item.type === 'expense' && (item.category || 'etc.') === category) {
+                    details.push({ date: dateKey, data: item });
+                }
+            });
         });
 
         // 날짜순 정렬

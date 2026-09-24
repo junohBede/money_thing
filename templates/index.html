@@ -699,125 +699,129 @@ $(document).ready(function() {
     }
 
     function updateWeeklyChart() {
-        var canvas = document.getElementById('weeklyExpenseChart');
-        if (!canvas) return; 
-        var ctx = canvas.getContext('2d');
-        
-        // 1. 현재 pay_cycle 계산
-        var today = new Date();
-        var anchor = new Date(2026, 1, 30); 
-        today.setHours(0, 0, 0, 0);
-        anchor.setHours(0, 0, 0, 0);
-        
-        var diffDays = Math.floor((today - anchor) / (1000 * 60 * 60 * 24));
-        var currentCycle = Math.floor(diffDays / 14); 
+    var canvas = document.getElementById('weeklyExpenseChart');
+    if (!canvas) return; 
+    var ctx = canvas.getContext('2d');
+    
+    // 1. 현재 pay_cycle 계산 (앵커 날짜: 2026년 1월 30일)
+    var today = new Date();
+    var anchor = new Date(2026, 0, 30); 
+    today.setHours(0, 0, 0, 0);
+    anchor.setHours(0, 0, 0, 0);
+    
+    var diffDays = Math.floor((today - anchor) / (1000 * 60 * 60 * 24));
+    var currentCycle = Math.floor(diffDays / 14); 
 
-        // 2. 그래프 하단에 보여줄 2주치 날짜 라벨 딱 하나만 만들기 (예: "9/6 - 9/19")
-        var cycleStart = new Date(anchor);
-        cycleStart.setDate(anchor.getDate() + (currentCycle * 14)); 
-        
-        var cycleEnd = new Date(cycleStart);
-        cycleEnd.setDate(cycleStart.getDate() + 13);
-        
-        var labelString = (cycleStart.getMonth() + 1) + '/' + cycleStart.getDate() + ' - ' + 
-                          (cycleEnd.getMonth() + 1) + '/' + cycleEnd.getDate();
-        var labels = [labelString];
+    // 2. 그래프 하단에 보여줄 2주치 날짜 라벨
+    var cycleStart = new Date(anchor);
+    cycleStart.setDate(anchor.getDate() + (currentCycle * 14)); 
+    
+    var cycleEnd = new Date(cycleStart);
+    cycleEnd.setDate(cycleStart.getDate() + 13);
+    
+    var labelString = (cycleStart.getMonth() + 1) + '/' + cycleStart.getDate() + ' - ' + 
+                      (cycleEnd.getMonth() + 1) + '/' + cycleEnd.getDate();
+    var labels = [labelString];
 
-        // 3. pay_cycle이 이번 주기와 일치하는 데이터만 싹 모으기
-        var cycleExpenses = [];
-        var categories = new Set();
-        
-        Object.values(transactionDatabase).forEach(function(dayArray) {
-            dayArray.forEach(function(item) {
-                if (item.pay_cycle === currentCycle && item.type === 'expense') {
+    // 3. 백엔드의 Cycle API를 호출하여 현재 주기의 데이터만 조회
+    $.ajax({
+        url: '/api/transactions/cycle/' + currentCycle,
+        type: 'GET',
+        success: function(cycleData) {
+            var cycleExpenses = [];
+            var categories = new Set();
+
+            cycleData.forEach(function(item) {
+                if (item.type === 'expense') {
                     cycleExpenses.push(item);
                     categories.add(item.category || 'other');
                 }
             });
-        });
 
-        // 4. 모은 데이터를 카테고리별로 합산 (totalSum)
-        var datasets = Array.from(categories).map(function(cat) {
-            var totalSum = 0;
-            cycleExpenses.forEach(function(item) {
-                if ((item.category || 'other') === cat) {
-                    totalSum += item.amount;
-                }
+            // 4. 모은 데이터를 카테고리별로 합산
+            var datasets = Array.from(categories).map(function(cat) {
+                var totalSum = 0;
+                cycleExpenses.forEach(function(item) {
+                    if ((item.category || 'other') === cat) {
+                        totalSum += item.amount;
+                    }
+                });
+
+                return {
+                    label: cat,
+                    data: [totalSum],
+                    backgroundColor: categoryColors[cat] || categoryColors['other'],
+                    barPercentage: 0.3 
+                };
             });
 
-            return {
-                label: cat,
-                data: [totalSum], // 단일 막대그래프를 위한 총합!
-                backgroundColor: categoryColors[cat] || categoryColors['other'],
-                barPercentage: 0.3 
-            };
-        });
+            if (expenseChartInstance !== null) {
+                expenseChartInstance.destroy();
+            }
 
-        if (expenseChartInstance !== null) {
-            expenseChartInstance.destroy();
-        }
-
-        expenseChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: datasets
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        stacked: true, 
-                        grid: { display: false },
-                        ticks: { color: '#b2bec3' }
-                    },
-                    y: {
-                        stacked: true, 
-                        grid: { color: '#636e72' },
-                        ticks: { 
-                            color: '#b2bec3',
-                            stepSize: 50,
-                            callback: function(value) { return '$' + value; }
-                        }
-                    }
+            expenseChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: datasets
                 },
-                plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: { color: 'white', boxWidth: 12 }
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return context.dataset.label + ': $' + context.raw.toFixed(2);
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true, 
+                            grid: { display: false },
+                            ticks: { color: '#b2bec3' }
+                        },
+                        y: {
+                            stacked: true, 
+                            grid: { color: '#636e72' },
+                            ticks: { 
+                                color: '#b2bec3',
+                                stepSize: 50,
+                                callback: function(value) { return '$' + value; }
                             }
                         }
                     },
-                    annotation: {
-                        annotations: {
-                            budgetLine: {
-                                type: 'line',
-                                yMin: WEEKLY_BUDGET,
-                                yMax: WEEKLY_BUDGET,
-                                borderColor: '#e74c3c',
-                                borderWidth: 2,
-                                borderDash: [6, 6],
-                                label: {
-                                    display: true,
-                                    content: 'Budget: $' + WEEKLY_BUDGET,
-                                    position: 'end',
-                                    backgroundColor: 'rgba(231, 76, 60, 0.8)',
-                                    color: 'white',
-                                    font: { size: 10, weight: 'bold' }
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { color: 'white', boxWidth: 12 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': $' + context.raw.toFixed(2);
+                                }
+                            }
+                        },
+                        annotation: {
+                            annotations: {
+                                budgetLine: {
+                                    type: 'line',
+                                    yMin: WEEKLY_BUDGET,
+                                    yMax: WEEKLY_BUDGET,
+                                    borderColor: '#e74c3c',
+                                    borderWidth: 2,
+                                    borderDash: [6, 6],
+                                    label: {
+                                        display: true,
+                                        content: 'Budget: $' + WEEKLY_BUDGET,
+                                        position: 'end',
+                                        backgroundColor: 'rgba(231, 76, 60, 0.8)',
+                                        color: 'white',
+                                        font: { size: 10, weight: 'bold' }
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
-        });
-    }
+            });
+        }
+    });
+}
 
     function appendDayCell($parent, displayNum, dateIsoStr, className) {
         var $li = $("<li>").addClass(className).attr("data-date", dateIsoStr);

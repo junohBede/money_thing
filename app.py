@@ -82,7 +82,32 @@ def delete_transaction(tx_id):
     conn.close()
     return jsonify({"status": "success"})
 
-# 6. Biweekly data sorting helper function
+# 6. Biweekly paycheck db creation
+@app.route('/api/transactions/cycle/<int:cycle_num>', methods=['GET'])
+def get_transactions_by_cycle(cycle_num):
+    conn = sqlite3.connect('cashbook.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT id, date, type, amount, category, memo, payment_method, pay_cycle FROM transactions WHERE pay_cycle = ?", (cycle_num,))
+    rows = cursor.fetchall()
+    conn.close()
+
+    result = []
+    for row in rows:
+        result.append({
+            "id": row[0],
+            "date": row[1],
+            "type": row[2],
+            "amount": row[3],
+            "category": row[4],
+            "memo": row[5],
+            "payment_method": row[6],
+            "pay_cycle": row[7]
+        })
+
+    return jsonify(result)
+
+# 7. Biweekly data sorting helper function
 def calculate_pay_cycle(tx_date_str):
     anchor_date = datetime(2026, 1, 30).date()
     tx_date = datetime.strptime(tx_date_str, '%Y-%m-%d').date()

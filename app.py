@@ -84,7 +84,7 @@ def delete_transaction(tx_id):
 
 # 6. Biweekly data sorting helper function
 def calculate_pay_cycle(tx_date_str):
-    anchor_date = datetime(2026, 1, 31).date()
+    anchor_date = datetime(2026, 1, 30).date()
     tx_date = datetime.strptime(tx_date_str, '%Y-%m-%d').date()
     days_diff = (tx_date - anchor_date).days
     cycle_number = days_diff // 14

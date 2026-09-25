@@ -706,16 +706,18 @@ $(document).ready(function() {
     
     // 1. 현재 pay_cycle 계산 (앵커 날짜: 2026년 1월 30일)
     var today = new Date();
-    var anchor = new Date(2026, 0, 30); 
     today.setHours(0, 0, 0, 0);
-    anchor.setHours(0, 0, 0, 0);
+
+    // 💡 서머타임(DST) 시차 영향을 받지 않도록 Date.UTC로 순수 날짜 차이만 계산
+    var todayUTC = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+    var anchorUTC = Date.UTC(2026, 0, 30); // 2026년 1월 30일
     
-    var diffDays = Math.floor((today - anchor) / (1000 * 60 * 60 * 24));
+    var diffDays = Math.floor((todayUTC - anchorUTC) / (1000 * 60 * 60 * 24));
     var currentCycle = Math.floor(diffDays / 14); 
 
     // 2. 그래프 하단에 보여줄 2주치 날짜 라벨
-    var cycleStart = new Date(anchor);
-    cycleStart.setDate(anchor.getDate() + (currentCycle * 14)); 
+    var cycleStart = new Date(2026, 0, 30);
+    cycleStart.setDate(cycleStart.getDate() + (currentCycle * 14)); 
     
     var cycleEnd = new Date(cycleStart);
     cycleEnd.setDate(cycleStart.getDate() + 13);

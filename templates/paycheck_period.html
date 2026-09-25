@@ -41,7 +41,6 @@
         }
         .back-link:hover { color: #2f3640; }
 
-        /* 월별 카드 스타일 */
         .month-card {
             background: #ffffff;
             padding: 25px;
@@ -99,7 +98,6 @@
             color: #e74c3c;
         }
 
-        /* 추가된 스타일: 클릭 가능한 리스트 요소 및 상세내역 컨테이너 */
         .cat-row {
             cursor: pointer;
             transition: background-color 0.2s;
@@ -147,9 +145,12 @@
 <script>
 $(document).ready(function() {
     var transactionDatabase = {};
-    var isRollingMode = false; // 💡 기본값은 페이쳌 주기 모드
+    var isRollingMode = false; 
 
-    // 💡 토글 버튼 클릭 시 모드를 변경하고 화면을 다시 그립니다.
+    // 💡 시간 및 날짜 계산을 위한 UTC 상수 및 앵커 설정
+    var MS_PER_DAY = 24 * 60 * 60 * 1000;
+    var anchorUTC = Date.UTC(2026, 0, 30); // 2026-01-30 UTC
+
     $("#toggleViewBtn").on("click", function() {
         isRollingMode = !isRollingMode;
         if (isRollingMode) {
@@ -159,9 +160,6 @@ $(document).ready(function() {
         }
         renderStats(); 
     });
-    // 💡 페이첵 기준일 설정
-    var anchorDate = new Date(2026, 0, 30); 
-    anchorDate.setHours(0, 0, 0, 0);
 
     var categoryColors = {
         'book': '#a29bfe', 'culture': '#ffeaa7', 'eat out': '#ff7675', 'fee': '#fab1a0',
@@ -169,6 +167,19 @@ $(document).ready(function() {
         'necesito': '#74b9ff', 'utility': '#dfe6e9', 'transport': '#81ecec', 'church': '#55efc4',
         'family': '#a29bfe', 'uncommon expense': '#fd79a8', 'rent': '#fab1a0', 'other': '#b2bec3', 'etc.': '#b2bec3'
     };
+
+    // 오늘 날짜의 UTC 00시 00분 00초 밀리초 구하기
+    function getTodayUTC() {
+        var now = new Date();
+        return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    }
+
+    // "YYYY-MM-DD" 문자열을 UTC 밀리초로 변환
+    function parseDateToUTC(dateStr) {
+        if (!dateStr) return null;
+        var parts = dateStr.split('-');
+        return Date.UTC(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    }
 
     function loadInitialData() {
         $.ajax({
@@ -192,7 +203,6 @@ $(document).ready(function() {
         });
     }
 
-    // 테스트용 더미데이터 (현재 주기에 맞게 날짜 변경)
     function generateDummyData() {
         transactionDatabase = {
             '2026-09-22': [{type: 'expense', category: 'eat out', amount: 45.50, description: 'Lunch'}],
@@ -201,183 +211,171 @@ $(document).ready(function() {
         };
     }
 
-    // 💡 주어진 날짜가 몇 번째 페이첵 주기인지 계산하는 함수
-    function getCycleNumber(dateStr) {
-        var txDate = new Date(dateStr);
-        txDate.setHours(0, 0, 0, 0);
-        var diffDays = Math.floor((txDate - anchorDate) / (1000 * 60 * 60 * 24));
-        return Math.floor(diffDays / 14);
-    }
-
     function renderStats() {
-    var today = new Date();
-    today.setHours(0, 0, 0, 0);
-    var diffDaysToday = Math.floor((today - anchorDate) / (1000 * 60 * 60 * 24));
-    var currentCycle = Math.floor(diffDaysToday / 14);
+        var todayUTC = getTodayUTC();
+        var diffDaysToday = Math.floor((todayUTC - anchorUTC) / MS_PER_DAY);
+        var currentCycle = Math.floor(diffDaysToday / 14);
 
-    // 모드에 따라 API URL 분기
-    var apiUrl = isRollingMode ? '/api/transactions' : ('/api/transactions/cycle/' + currentCycle);
+        var apiUrl = isRollingMode ? '/api/transactions' : ('/api/transactions/cycle/' + currentCycle);
 
-    $.ajax({
-        url: apiUrl,
-        type: 'GET',
-        success: function(data) {
-            processAndRenderStats(data, currentCycle, today);
-        }
-    });
-}
-
-function processAndRenderStats(data, currentCycle, today) {
-    var $container =$("#cardsContainer").empty();
-
-    var cycleStart = new Date(anchorDate);
-    cycleStart.setDate(anchorDate.getDate() + (currentCycle * 14)); 
-    var cycleEnd = new Date(cycleStart);
-    cycleEnd.setDate(cycleStart.getDate() + 13);
-    var periodTitle = "";
-    
-    // 1. 기간 제목(periodTitle) 설정 부분 복구
-    if (isRollingMode) {
-        var pastDate = new Date(today);
-        pastDate.setDate(today.getDate() - 13);
-        periodTitle = "Rolling: " + (pastDate.getMonth() + 1) + "/" + pastDate.getDate() + " - " + 
-                      (today.getMonth() + 1) + "/" + today.getDate();
-    } else {
-        periodTitle = "Paycheck: " + (cycleStart.getMonth() + 1) + "/" + cycleStart.getDate() + " - " + 
-                      (cycleEnd.getMonth() + 1) + "/" + cycleEnd.getDate();
+        $.ajax({
+            url: apiUrl,
+            type: 'GET',
+            success: function(data) {
+                processAndRenderStats(data, currentCycle, todayUTC);
+            }
+        });
     }
 
-    var categoryTotals = {};
-    var periodTotal = 0; 
-    var hasData = false;
-    
-    data.forEach(function(item) {
-        var isValid = false;
+    function processAndRenderStats(data, currentCycle, todayUTC) {
+        var $container =$("#cardsContainer").empty();
 
+        var periodTitle = "";
+        
+        // 💡 UTC 전용 메서드를 사용해 기간 타이틀 라벨 생성
         if (isRollingMode) {
-            // 2. 타임존 오류를 방지하는 올바른 필터링 코드는 데이터 순회(forEach) 안에 있어야 합니다.
-            if (item.date) {
-                var parts = item.date.split('-');
-                var txDate = new Date(parts[0], parts[1] - 1, parts[2]);
-                txDate.setHours(0, 0, 0, 0);
-                
-                var diffFromToday = Math.floor((today - txDate) / (1000 * 60 * 60 * 24));
-                if (diffFromToday >= 0 && diffFromToday <= 13) isValid = true;
-            }
+            var pastMs = todayUTC - (13 * MS_PER_DAY);
+            var pastDate = new Date(pastMs);
+            var todayDate = new Date(todayUTC);
+            periodTitle = "Rolling: " + (pastDate.getUTCMonth() + 1) + "/" + pastDate.getUTCDate() + " - " + 
+                          (todayDate.getUTCMonth() + 1) + "/" + todayDate.getUTCDate();
         } else {
-            isValid = true;
+            var cycleStartMs = anchorUTC + (currentCycle * 14 * MS_PER_DAY);
+            var cycleEndMs = cycleStartMs + (13 * MS_PER_DAY);
+            var cycleStart = new Date(cycleStartMs);
+            var cycleEnd = new Date(cycleEndMs);
+            periodTitle = "Paycheck: " + (cycleStart.getUTCMonth() + 1) + "/" + cycleStart.getUTCDate() + " - " + 
+                          (cycleEnd.getUTCMonth() + 1) + "/" + cycleEnd.getUTCDate();
         }
 
-        if (isValid && item.type === 'expense') {
-            var cat = item.category || 'etc.';
-            categoryTotals[cat] = (categoryTotals[cat] || 0) + item.amount;
-            periodTotal += item.amount;
-            hasData = true;
-        }
-    });
-    var cardId = "card-current";
-    var chartId = "chart-current";
-    var listId = "list-current";
-    var detailId = "detail-current";
+        var categoryTotals = {};
+        var periodTotal = 0; 
+        var hasData = false;
+        
+        data.forEach(function(item) {
+            var isValid = false;
 
-    var cardHtml = `
-        <div class="month-card" id="${cardId}" data-cycle="${currentCycle}">
-            <div class="month-title">${periodTitle}</div>
-            <div class="content-layout">
-                <div class="chart-box">
-                    <div class="chart-wrapper">
-                        <canvas id="${chartId}"></canvas>
-                    </div>
-                    <div style="text-align:center; margin-top:10px; font-size:12px; color:#a4b0be;">
-                        * Click on a category or chart segment to view details
-                    </div>
-                </div>
-                <div class="list-box">
-                    <table class="monthly-cat-table">
-                        <thead>
-                            <tr>
-                                <th>Category (Legend)</th>
-                                <th style="text-align: right;">Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody id="${listId}"></tbody>
-                        <tfoot>
-                            <tr style="border-top: 2px solid #2f3640;">
-                                <td style="font-weight:bold; color:#2f3640; padding-top:15px; font-size:15px;">Period Total</td>
-                                <td class="amt-col" style="padding-top:15px; font-size:16px;">
-                                    $${periodTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                                </td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-            <div id="${detailId}" class="detail-container" style="display:none;"></div>
-        </div>
-    `;
-    $container.append(cardHtml);
+            if (isRollingMode) {
+                // 💡 UTC 기준으로 날짜 차이를 정확히 구해서 Rolling 14일 검증
+                if (item.date) {
+                    var itemUTC = parseDateToUTC(item.date);
+                    var diffFromToday = Math.floor((todayUTC - itemUTC) / MS_PER_DAY);
+                    if (diffFromToday >= 0 && diffFromToday <= 13) isValid = true;
+                }
+            } else {
+                isValid = true;
+            }
 
-    var $tableBody =$("#" + listId);
-    var chartDatasets = [];
-
-    if (!hasData) {
-        $tableBody.append('<tr><td colspan="2" style="text-align:center; color:#7f8c8d; font-style:italic; padding:30px 0;">No expenses tracked for this period.</td></tr>');
-    } else {
-        var sortedCategories = Object.keys(categoryTotals).sort(function(a,b) {
-            return categoryTotals[b] - categoryTotals[a];
+            if (isValid && item.type === 'expense') {
+                var cat = item.category || 'etc.';
+                categoryTotals[cat] = (categoryTotals[cat] || 0) + item.amount;
+                periodTotal += item.amount;
+                hasData = true;
+            }
         });
 
-        sortedCategories.forEach(function(cat) {
-            var amt = categoryTotals[cat];
-            
-            chartDatasets.push({
-                label: cat,
-                data: [amt], 
-                backgroundColor: categoryColors[cat] || '#b2bec3',
-                barThickness: 45,
-                borderRadius: 4
+        var cardId = "card-current";
+        var chartId = "chart-current";
+        var listId = "list-current";
+        var detailId = "detail-current";
+
+        var cardHtml = `
+            <div class="month-card" id="${cardId}" data-cycle="${currentCycle}">
+                <div class="month-title">${periodTitle}</div>
+                <div class="content-layout">
+                    <div class="chart-box">
+                        <div class="chart-wrapper">
+                            <canvas id="${chartId}"></canvas>
+                        </div>
+                        <div style="text-align:center; margin-top:10px; font-size:12px; color:#a4b0be;">
+                            * Click on a category or chart segment to view details
+                        </div>
+                    </div>
+                    <div class="list-box">
+                        <table class="monthly-cat-table">
+                            <thead>
+                                <tr>
+                                    <th>Category (Legend)</th>
+                                    <th style="text-align: right;">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="${listId}"></tbody>
+                            <tfoot>
+                                <tr style="border-top: 2px solid #2f3640;">
+                                    <td style="font-weight:bold; color:#2f3640; padding-top:15px; font-size:15px;">Period Total</td>
+                                    <td class="amt-col" style="padding-top:15px; font-size:16px;">
+                                        $${periodTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+                <div id="${detailId}" class="detail-container" style="display:none;"></div>
+            </div>
+        `;
+        $container.append(cardHtml);
+
+        var $tableBody =$("#" + listId);
+        var chartDatasets = [];
+
+        if (!hasData) {
+            $tableBody.append('<tr><td colspan="2" style="text-align:center; color:#7f8c8d; font-style:italic; padding:30px 0;">No expenses tracked for this period.</td></tr>');
+        } else {
+            var sortedCategories = Object.keys(categoryTotals).sort(function(a,b) {
+                return categoryTotals[b] - categoryTotals[a];
             });
 
-            var rowHtml = `<tr class="cat-row" data-cat="${cat}">
-                <td><span style="display:inline-block; width:12px; height:12px; background-color:${categoryColors[cat]||'#b2bec3'}; margin-right:8px; border-radius:2px; vertical-align:middle;"></span>${cat}</td>
-                <td class="amt-col">$${amt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-            </tr>`;
-            $tableBody.append(rowHtml);
+            sortedCategories.forEach(function(cat) {
+                var amt = categoryTotals[cat];
+                
+                chartDatasets.push({
+                    label: cat,
+                    data: [amt], 
+                    backgroundColor: categoryColors[cat] || '#b2bec3',
+                    barThickness: 45,
+                    borderRadius: 4
+                });
+
+                var rowHtml = `<tr class="cat-row" data-cat="${cat}">
+                    <td><span style="display:inline-block; width:12px; height:12px; background-color:${categoryColors[cat]||'#b2bec3'}; margin-right:8px; border-radius:2px; vertical-align:middle;"></span>${cat}</td>
+                    <td class="amt-col">$${amt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                </tr>`;
+                $tableBody.append(rowHtml);
+            });
+        }
+
+        var ctx = document.getElementById(chartId).getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: { labels: [''], datasets: chartDatasets },
+            options: {
+                indexAxis: 'y', 
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true, display: false },
+                    y: { stacked: true, display: false }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) { return context.dataset.label + ': $' + context.raw.toFixed(2); }
+                        }
+                    }
+                },
+                onClick: function(event, elements) {
+                    if (elements.length > 0) {
+                        var datasetIndex = elements[0].datasetIndex;
+                        var clickedCat = this.data.datasets[datasetIndex].label;
+                        showCategoryDetails(currentCycle, clickedCat, detailId);
+                    }
+                }
+            }
         });
     }
 
-    var ctx = document.getElementById(chartId).getContext('2d');
-    new Chart(ctx, {
-        type: 'bar',
-        data: { labels: [''], datasets: chartDatasets },
-        options: {
-            indexAxis: 'y', 
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: { stacked: true, display: false },
-                y: { stacked: true, display: false }
-            },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) { return context.dataset.label + ': $' + context.raw.toFixed(2); }
-                    }
-                }
-            },
-            onClick: function(event, elements) {
-                if (elements.length > 0) {
-                    var datasetIndex = elements[0].datasetIndex;
-                    var clickedCat = this.data.datasets[datasetIndex].label;
-                    showCategoryDetails(currentCycle, clickedCat, detailId);
-                }
-            }
-        }
-    });
-}
-
-    // 💡 월간 데이터(data-month)가 아닌 주기 번호(data-cycle)를 넘기도록 수정
     $(document).on('click', '.cat-row', function() {
         var cat = $(this).data('cat');
         var $card =$(this).closest('.month-card');
@@ -388,78 +386,78 @@ function processAndRenderStats(data, currentCycle, today) {
     });
 
     function showCategoryDetails(cycleNum, category, containerId) {
-    var apiUrl = isRollingMode ? '/api/transactions' : ('/api/transactions/cycle/' + cycleNum);
+        var apiUrl = isRollingMode ? '/api/transactions' : ('/api/transactions/cycle/' + cycleNum);
 
-    $.ajax({
-        url: apiUrl,
-        type: 'GET',
-        success: function(data) {
-            var details = [];
-            var today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            data.forEach(function(item) {
-                var isValid = false;
+        $.ajax({
+            url: apiUrl,
+            type: 'GET',
+            success: function(data) {
+                var details = [];
+                var todayUTC = getTodayUTC();
+                
+                data.forEach(function(item) {
+                    var isValid = false;
 
-                if (isRollingMode) {
-                    var parts = item.date.split('-');
-                    var txDate = new Date(parts[0], parts[1] - 1, parts[2]);
-                    txDate.setHours(0, 0, 0, 0);
-                    
-                    var diffFromToday = Math.floor((today - txDate) / (1000 * 60 * 60 * 24));
-                    if (diffFromToday >= 0 && diffFromToday <= 13) isValid = true;
-                } else {
-                    isValid = true;
-                }
+                    if (isRollingMode) {
+                        // 💡 세부항목 조회 시에도 동일한 UTC 날짜 차이 로직 적용
+                        if (item.date) {
+                            var itemUTC = parseDateToUTC(item.date);
+                            var diffFromToday = Math.floor((todayUTC - itemUTC) / MS_PER_DAY);
+                            if (diffFromToday >= 0 && diffFromToday <= 13) isValid = true;
+                        }
+                    } else {
+                        isValid = true;
+                    }
 
-                if (isValid && item.type === 'expense' && (item.category || 'etc.') === category) {
-                    details.push({ date: item.date, data: item });
-                }
-            });
-
-            details.sort(function(a, b) { return a.date.localeCompare(b.date); });
-
-            var color = categoryColors[category] || '#333';
-            var html = `
-                <div style="margin-bottom: 15px;">
-                    <h3 style="margin:0; font-size:18px; color:${color};">
-                        <span style="display:inline-block; width:14px; height:14px; background-color:${color}; margin-right:8px; border-radius:3px;"></span>
-                        ${category} Expenses
-                        <span class="detail-close" onclick="$('#${containerId}').slideUp()">✖</span>
-                    </h3>
-                </div>
-                <table style="width:100%; border-collapse: collapse; font-size:14px;">
-                    <thead>
-                        <tr style="border-bottom: 2px solid #ddd; text-align:left;">
-                            <th style="padding: 8px 5px; color:#7f8c8d;">Date</th>
-                            <th style="padding: 8px 5px; color:#7f8c8d;">Description</th>
-                            <th style="padding: 8px 5px; text-align:right; color:#7f8c8d;">Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            if (details.length === 0) {
-                html += `<tr><td colspan="3" style="text-align:center; padding:15px; color:#7f8c8d;">No details found.</td></tr>`;
-            } else {
-                details.forEach(function(entry) {
-                    var desc = entry.data.description || entry.data.memo || '-';
-                    var amt = entry.data.amount;
-                    html += `
-                        <tr style="border-bottom: 1px solid #eee;">
-                            <td style="padding: 10px 5px; color:#2f3640;">${entry.date}</td>
-                            <td style="padding: 10px 5px; color:#2f3640;">${desc}</td>
-                            <td style="padding: 10px 5px; text-align:right; font-weight:bold; color:#e74c3c;">$${amt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                        </tr>
-                    `;
+                    if (isValid && item.type === 'expense' && (item.category || 'etc.') === category) {
+                        details.push({ date: item.date, data: item });
+                    }
                 });
+
+                details.sort(function(a, b) { return a.date.localeCompare(b.date); });
+
+                var color = categoryColors[category] || '#333';
+                var html = `
+                    <div style="margin-bottom: 15px;">
+                        <h3 style="margin:0; font-size:18px; color:${color};">
+                            <span style="display:inline-block; width:14px; height:14px; background-color:${color}; margin-right:8px; border-radius:3px;"></span>
+                            ${category} Expenses
+                            <span class="detail-close" onclick="$('#${containerId}').slideUp()">✖</span>
+                        </h3>
+                    </div>
+                    <table style="width:100%; border-collapse: collapse; font-size:14px;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #ddd; text-align:left;">
+                                <th style="padding: 8px 5px; color:#7f8c8d;">Date</th>
+                                <th style="padding: 8px 5px; color:#7f8c8d;">Description</th>
+                                <th style="padding: 8px 5px; text-align:right; color:#7f8c8d;">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                if (details.length === 0) {
+                    html += `<tr><td colspan="3" style="text-align:center; padding:15px; color:#7f8c8d;">No details found.</td></tr>`;
+                } else {
+                    details.forEach(function(entry) {
+                        var desc = entry.data.description || entry.data.memo || '-';
+                        var amt = entry.data.amount;
+                        html += `
+                            <tr style="border-bottom: 1px solid #eee;">
+                                <td style="padding: 10px 5px; color:#2f3640;">${entry.date}</td>
+                                <td style="padding: 10px 5px; color:#2f3640;">${desc}</td>
+                                <td style="padding: 10px 5px; text-align:right; font-weight:bold; color:#e74c3c;">$${amt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            </tr>
+                        `;
+                    });
+                }
+                
+                html += `</tbody></table>`;
+                $("#" + containerId).html(html).slideDown();
             }
-            
-            html += `</tbody></table>`;
-            $("#" + containerId).html(html).slideDown();
-        }
-    });
-}
+        });
+    }
+
     loadInitialData();
 });
 </script>

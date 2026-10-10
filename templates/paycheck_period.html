@@ -147,7 +147,7 @@ $(document).ready(function() {
     var transactionDatabase = {};
     var isRollingMode = false; 
 
-    // 💡 시간 및 날짜 계산을 위한 UTC 상수 및 앵커 설정
+    // 시간 및 날짜 계산을 위한 UTC 상수 및 앵커 설정
     var MS_PER_DAY = 24 * 60 * 60 * 1000;
     var anchorUTC = Date.UTC(2026, 0, 30); // 2026-01-30 UTC
 
@@ -164,9 +164,23 @@ $(document).ready(function() {
     var categoryColors = {
         'book': '#a29bfe', 'culture': '#ffeaa7', 'eat out': '#ff7675', 'fee': '#fab1a0',
         'fun': '#fd79a8', 'grocery': '#55efc4', 'health': '#ffeaa7', 'luck': '#fdcb6e',
-        'necesito': '#74b9ff', 'utility': '#dfe6e9', 'transport': '#81ecec', 'church': '#55efc4',
-        'family': '#a29bfe', 'uncommon expense': '#fd79a8', 'rent': '#fab1a0', 'other': '#b2bec3', 'etc.': '#b2bec3'
+        'necesito': '#74b9ff', 'fixed cost': '#dfe6e9', 'transport': '#81ecec', 'church': '#55efc4',
+        'family': '#a29bfe', 'uncommon expense': '#fd79a8', 'rent': '#fab1a0', 'other': '#b2bec3', 'etc.': '#b2bec3',
+        'gens': '#0984e3' // 표에서 나머지를 몰아넣을 그룹 색상
     };
+
+    // 독립적으로 유지할 4가지 카테고리 및 그룹 이름 정의
+    var excludedCategories = ['saving', 'rent', 'fixed cost', 'uncommon expense'];
+    var GROUP_NAME = 'gens';
+
+    // 표에서 사용할 카테고리 매핑 함수 (4가지를 제외한 나머지는 전부 General Expenses로 반환)
+    function getMappedCategory(cat) {
+        var c = cat || 'etc.';
+        if (excludedCategories.includes(c)) {
+            return c;
+        }
+        return GROUP_NAME;
+    }
 
     // 오늘 날짜의 UTC 00시 00분 00초 밀리초 구하기
     function getTodayUTC() {
@@ -232,7 +246,6 @@ $(document).ready(function() {
 
         var periodTitle = "";
         
-        // 💡 UTC 전용 메서드를 사용해 기간 타이틀 라벨 생성
         if (isRollingMode) {
             var pastMs = todayUTC - (13 * MS_PER_DAY);
             var pastDate = new Date(pastMs);
@@ -248,7 +261,8 @@ $(document).ready(function() {
                           (cycleEnd.getUTCMonth() + 1) + "/" + cycleEnd.getUTCDate();
         }
 
-        var categoryTotals = {};
+        var rawCategoryTotals = {};   // 💡 차트용 (개별 카테고리 유지)
+        var tableCategoryTotals = {}; // 💡 표용 (그룹화 적용)
         var periodTotal = 0; 
         var hasData = false;
         
@@ -256,7 +270,6 @@ $(document).ready(function() {
             var isValid = false;
 
             if (isRollingMode) {
-                // 💡 UTC 기준으로 날짜 차이를 정확히 구해서 Rolling 14일 검증
                 if (item.date) {
                     var itemUTC = parseDateToUTC(item.date);
                     var diffFromToday = Math.floor((todayUTC - itemUTC) / MS_PER_DAY);
@@ -267,8 +280,15 @@ $(document).ready(function() {
             }
 
             if (isValid && item.type === 'expense') {
-                var cat = item.category || 'etc.';
-                categoryTotals[cat] = (categoryTotals[cat] || 0) + item.amount;
+                var rawCat = item.category || 'etc.';
+                
+                // 1. 차트용 집계 (개별 카테고리 그대로)
+                rawCategoryTotals[rawCat] = (rawCategoryTotals[rawCat] || 0) + item.amount;
+
+                // 2. 표용 집계 (그룹화 적용)
+                var tableCat = getMappedCategory(rawCat);
+                tableCategoryTotals[tableCat] = (tableCategoryTotals[tableCat] || 0) + item.amount;
+
                 periodTotal += item.amount;
                 hasData = true;
             }
@@ -277,6 +297,7 @@ $(document).ready(function() {
         var cardId = "card-current";
         var chartId = "chart-current";
         var listId = "list-current";
+        var subListId = "sub-list-current";
         var detailId = "detail-current";
 
         var cardHtml = `
@@ -313,22 +334,77 @@ $(document).ready(function() {
                 </div>
                 <div id="${detailId}" class="detail-container" style="display:none;"></div>
             </div>
+            <!-- 💡 General Expenses 세부 항목(쫌쫌따리)을 보여주는 서브 표 영역 추가 -->
+                <div style="margin-top: 30px; border-top: 2px dashed #edf2f7; padding-top: 20px;">
+                    <h4 style="margin: 0 0 12px 0; font-size: 15px; color: #7f8c8d; font-weight: 600;">📌 Gens Breakdown (세부 항목)</h4>
+                    <table class="monthly-cat-table">
+                        <thead>
+                            <tr>
+                                <th>Sub-Category</th>
+                                <th style="text-align: right;">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="${subListId}"></tbody>
+                    </table>
+                </div>
+
+                <div id="${detailId}" class="detail-container" style="display:none;"></div>
+            </div>
+        
         `;
         $container.append(cardHtml);
 
         var $tableBody =$("#" + listId);
+        var $subTableBody =$("#" + subListId);
         var chartDatasets = [];
 
         if (!hasData) {
             $tableBody.append('<tr><td colspan="2" style="text-align:center; color:#7f8c8d; font-style:italic; padding:30px 0;">No expenses tracked for this period.</td></tr>');
         } else {
-            var sortedCategories = Object.keys(categoryTotals).sort(function(a,b) {
-                return categoryTotals[b] - categoryTotals[a];
+            // 1. 표(Table)는 그룹화된 tableCategoryTotals 기준으로 렌더링
+            var sortedTableCategories = Object.keys(tableCategoryTotals).sort(function(a,b) {
+                return tableCategoryTotals[b] - tableCategoryTotals[a];
             });
 
-            sortedCategories.forEach(function(cat) {
-                var amt = categoryTotals[cat];
-                
+            sortedTableCategories.forEach(function(cat) {
+                var amt = tableCategoryTotals[cat];
+                var rowHtml = `<tr class="cat-row" data-cat="${cat}">
+                    <td><span style="display:inline-block; width:12px; height:12px; background-color:${categoryColors[cat]||'#b2bec3'}; margin-right:8px; border-radius:2px; vertical-align:middle;"></span>${cat}</td>
+                    <td class="amt-col">$${amt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                </tr>`;
+                $tableBody.append(rowHtml);
+            });
+            var generalSubTotals = {};
+            Object.keys(rawCategoryTotals).forEach(function(cat) {
+                if (!excludedCategories.includes(cat)) {
+                    generalSubTotals[cat] = rawCategoryTotals[cat];
+                }
+            });
+
+            var sortedGeneralSubs = Object.keys(generalSubTotals).sort(function(a, b) {
+                return generalSubTotals[b] - generalSubTotals[a];
+            });
+
+            if (sortedGeneralSubs.length === 0) {
+                $subTableBody.append('<tr><td colspan="2" style="text-align:center; color:#7f8c8d; font-style:italic; padding:15px 0;">No sub-items in General Expenses.</td></tr>');
+            } else {
+                sortedGeneralSubs.forEach(function(cat) {
+                    var amt = generalSubTotals[cat];
+                    var subRowHtml = `<tr class="sub-cat-row" data-cat="${cat}">
+                        <td><span style="display:inline-block; width:10px; height:10px; background-color:${categoryColors[cat]||'#b2bec3'}; margin-right:8px; border-radius:2px; vertical-align:middle;"></span>${cat}</td>
+                        <td class="amt-col">$${amt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    </tr>`;
+                    $subTableBody.append(subRowHtml);
+                });
+            }
+
+            // 2. 차트(Chart)는 개별 rawCategoryTotals 기준으로 렌더링
+            var sortedChartCategories = Object.keys(rawCategoryTotals).sort(function(a,b) {
+                return rawCategoryTotals[b] - rawCategoryTotals[a];
+            });
+
+            sortedChartCategories.forEach(function(cat) {
+                var amt = rawCategoryTotals[cat];
                 chartDatasets.push({
                     label: cat,
                     data: [amt], 
@@ -336,12 +412,6 @@ $(document).ready(function() {
                     barThickness: 45,
                     borderRadius: 4
                 });
-
-                var rowHtml = `<tr class="cat-row" data-cat="${cat}">
-                    <td><span style="display:inline-block; width:12px; height:12px; background-color:${categoryColors[cat]||'#b2bec3'}; margin-right:8px; border-radius:2px; vertical-align:middle;"></span>${cat}</td>
-                    <td class="amt-col">$${amt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                </tr>`;
-                $tableBody.append(rowHtml);
             });
         }
 
@@ -368,7 +438,7 @@ $(document).ready(function() {
                 onClick: function(event, elements) {
                     if (elements.length > 0) {
                         var datasetIndex = elements[0].datasetIndex;
-                        var clickedCat = this.data.datasets[datasetIndex].label;
+                        var clickedCat = this.data.datasets[datasetIndex].label; // 개별 카테고리 이름
                         showCategoryDetails(currentCycle, clickedCat, detailId);
                     }
                 }
@@ -377,8 +447,18 @@ $(document).ready(function() {
     }
 
     $(document).on('click', '.cat-row', function() {
-        var cat = $(this).data('cat');
+        var cat = $(this).data('cat'); // 표에서 클릭한 항목 (General Expenses 또는 개별 카테고리)
         var $card =$(this).closest('.month-card');
+        var cycleNum = $card.data('cycle'); 
+        var detailId = $card.find('.detail-container').attr('id');
+        
+        showCategoryDetails(cycleNum, cat, detailId);
+    });
+
+    // 💡 서브 표의 개별 카테고리 클릭 시 상세 내역 조회
+    $(document).on('click', '.sub-cat-row', function() {
+        var cat = $(this).data('cat'); // 클릭한 세부 카테고리 이름
+        var $card = $(this).closest('.month-card');
         var cycleNum = $card.data('cycle'); 
         var detailId = $card.find('.detail-container').attr('id');
         
@@ -399,7 +479,6 @@ $(document).ready(function() {
                     var isValid = false;
 
                     if (isRollingMode) {
-                        // 💡 세부항목 조회 시에도 동일한 UTC 날짜 차이 로직 적용
                         if (item.date) {
                             var itemUTC = parseDateToUTC(item.date);
                             var diffFromToday = Math.floor((todayUTC - itemUTC) / MS_PER_DAY);
@@ -409,8 +488,22 @@ $(document).ready(function() {
                         isValid = true;
                     }
 
-                    if (isValid && item.type === 'expense' && (item.category || 'etc.') === category) {
-                        details.push({ date: item.date, data: item });
+                    if (isValid && item.type === 'expense') {
+                        var rawCat = item.category || 'etc.';
+                        var mappedCat = getMappedCategory(rawCat);
+
+                        var isMatch = false;
+                        if (category === GROUP_NAME) {
+                            // 표에서 General Expenses를 눌렀을 경우 매핑된 항목들 모두 포함
+                            isMatch = (mappedCat === GROUP_NAME);
+                        } else {
+                            // 개별 카테고리(표나 차트에서 개별 클릭한 경우)
+                            isMatch = (rawCat === category);
+                        }
+
+                        if (isMatch) {
+                            details.push({ date: item.date, data: item });
+                        }
                     }
                 });
 
@@ -429,6 +522,7 @@ $(document).ready(function() {
                         <thead>
                             <tr style="border-bottom: 2px solid #ddd; text-align:left;">
                                 <th style="padding: 8px 5px; color:#7f8c8d;">Date</th>
+                                <th style="padding: 8px 5px; color:#7f8c8d;">Category</th>
                                 <th style="padding: 8px 5px; color:#7f8c8d;">Description</th>
                                 <th style="padding: 8px 5px; text-align:right; color:#7f8c8d;">Amount</th>
                             </tr>
@@ -437,14 +531,16 @@ $(document).ready(function() {
                 `;
 
                 if (details.length === 0) {
-                    html += `<tr><td colspan="3" style="text-align:center; padding:15px; color:#7f8c8d;">No details found.</td></tr>`;
+                    html += `<tr><td colspan="4" style="text-align:center; padding:15px; color:#7f8c8d;">No details found.</td></tr>`;
                 } else {
                     details.forEach(function(entry) {
                         var desc = entry.data.description || entry.data.memo || '-';
                         var amt = entry.data.amount;
+                        var itemCat = entry.data.category || '-'; 
                         html += `
                             <tr style="border-bottom: 1px solid #eee;">
                                 <td style="padding: 10px 5px; color:#2f3640;">${entry.date}</td>
+                                <td style="padding: 10px 5px; color:#7f8c8d; font-size:12px;">${itemCat}</td>
                                 <td style="padding: 10px 5px; color:#2f3640;">${desc}</td>
                                 <td style="padding: 10px 5px; text-align:right; font-weight:bold; color:#e74c3c;">$${amt.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             </tr>
